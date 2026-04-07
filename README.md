@@ -12,4 +12,5 @@ Lectured by prof. [Marcelo Pimenta](https://www.inf.ufrgs.br/~mpimenta/).
 
 ## Build Instructions
 1. Install CMake and g++ toolchain for your platform.
+3. Install [FluidSynth](https://github.com/FluidSynth/fluidsynth).
 2. Run `mkdir build && cd build && cmake .. && make`

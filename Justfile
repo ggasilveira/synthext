@@ -6,4 +6,4 @@ build:
     make -C build
 
 run: build
-    ./build/Synthext
+    ./build/apps/app
