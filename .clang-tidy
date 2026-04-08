@@ -1,2 +1,3 @@
 
-Checks: [bugprone-*, performance-*, concurrency-*, clang-analyzer-*, modernize-*, cppcoreguidelines-*, llvm-*, readability-*, portability-*]
+Checks: [bugprone-*,performance-*,concurrency-*,clang-analyzer-*,modernize-*,cppcoreguidelines-*,llvm-*,readability-*,portability-*,-cppcoreguidelines-special-member-functions]
+

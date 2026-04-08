@@ -1,6 +1,62 @@
 #pragma once
 
+#include "synthlib/note.hpp"
+
 namespace synthlib {
+
+class PlayerConfig {
+  int _bpm = 0;
+  int _volume = 0;
+  int _max_volume = 0;
+  int _octave = 0;
+  int _max_octave = 0;
+  int _midi = 0;
+  int _note_beats = 0;
+  int _silence_beats = 0;
+
+public:
+  void set_bpm(int bpm) { _bpm = bpm; }
+  void set_volume(int volume) { _volume = volume; }
+  void set_max_volume(int volume) { _max_volume = volume; }
+  void set_octave(int octave) { _octave = octave; }
+  void set_max_octave(int octave) { _max_octave = octave; }
+  void set_midi(int instrument) { _midi = instrument; }
+  void set_note_beats(int beats) { _note_beats = beats; }
+  void set_silence_beats(int beats) { _silence_beats = beats; }
+
+  [[nodiscard]]
+  auto bpm() const -> int {
+    return _bpm;
+  }
+  [[nodiscard]]
+  auto volume() const -> int {
+    return _volume;
+  }
+  [[nodiscard]]
+  auto octave() const -> int {
+    return _octave;
+  }
+  [[nodiscard]]
+  auto max_volume() const -> int {
+    return _max_volume;
+  }
+  [[nodiscard]]
+  auto max_octave() const -> int {
+    return _max_octave;
+  }
+  [[nodiscard]]
+  auto midi() const -> int {
+    return _midi;
+  }
+  [[nodiscard]]
+  auto note_beats() const -> int {
+    return _note_beats;
+  }
+  [[nodiscard]]
+  auto silence_beats() const -> int {
+    return _silence_beats;
+  }
+};
 
 class IPlayer {
 public:
@@ -10,10 +66,11 @@ public:
   auto operator=(const IPlayer &) -> IPlayer & = delete;
   auto operator=(const IPlayer &&) -> IPlayer & = delete;
 
+  virtual void config(const PlayerConfig &config) = 0;
   virtual auto get_volume() -> int = 0;
   virtual void set_volume(int volume) = 0;
   virtual auto max_volume() -> int = 0;
-  virtual void play_note(int note) = 0;
+  virtual void play_note(Note note) = 0;
   virtual void play_silence() = 0;
   virtual auto get_midi() -> int = 0;
   virtual void set_midi(int midi) = 0;
@@ -23,53 +80,29 @@ public:
   virtual auto default_octave() -> int = 0;
 };
 
-class PlayerConfig {
-  int bpm = 0;
-  int volume = 0;
-  int max_volume = 0;
-  int octave = 0;
-  int max_octave = 0;
-  int midi = 0;
-  int note_beats = 0;
-  int silence_beats = 0;
+class PrintPlayer : IPlayer {
+  int _bpm = 0;
+  int _volume = 0;
+  int _max_volume = 0;
+  int _octave = 0;
+  int _max_octave = 0;
+  int _midi = 0;
+  int _note_beats = 0;
+  int _silence_beats = 0;
 
 public:
-  void set_bpm(int bpm) { this->bpm = bpm; }
-  void set_volume(int vol) { volume = vol; }
-  void set_octave(int oct) { octave = oct; }
-  void set_max_volume(int vol) { max_volume = vol; }
-  void set_midi(int instrument) { this->midi = instrument; }
-  void set_note_beats(int beats) { note_beats = beats; }
-  void set_silence_beats(int beats) { silence_beats = beats; }
-
-  [[nodiscard]]
-  auto get_bpm() const -> int {
-    return bpm;
-  }
-  [[nodiscard]]
-  auto get_volume() const -> int {
-    return volume;
-  }
-  [[nodiscard]]
-  auto get_octave() const -> int {
-    return octave;
-  }
-  [[nodiscard]]
-  auto get_max_volume() const -> int {
-    return max_volume;
-  }
-  [[nodiscard]]
-  auto get_midi() const -> int {
-    return midi;
-  }
-  [[nodiscard]]
-  auto get_note_beats() const -> int {
-    return note_beats;
-  }
-  [[nodiscard]]
-  auto get_silence_beats() const -> int {
-    return silence_beats;
-  }
+  void config(const PlayerConfig &config) override;
+  auto get_volume() -> int override;
+  void set_volume(int volume) override;
+  auto max_volume() -> int override;
+  void play_note(Note note) override;
+  void play_silence() override;
+  auto get_midi() -> int override;
+  void set_midi(int midi) override;
+  auto get_octave() -> int override;
+  void set_octave(int octave) override;
+  auto max_octave() -> int override;
+  auto default_octave() -> int override;
 };
 
 } // namespace synthlib
