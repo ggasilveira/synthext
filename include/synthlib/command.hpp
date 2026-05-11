@@ -1,4 +1,5 @@
 #pragma once
+#include "synthlib/midi.hpp"
 #include "synthlib/note.hpp"
 #include "synthlib/player.hpp"
 #include <memory>
@@ -43,30 +44,30 @@ public:
 };
 
 /// Changes to the given MIDI instrument
-class CommandChangeMidi : public ICommand {
-  int midi;
+class CommandChangeInstrument : public ICommand {
+  Instrument midi;
 
 public:
-  CommandChangeMidi(int midi) : midi(midi) {}
+  CommandChangeInstrument(Instrument midi) : midi(midi) {}
 
   void execute(synthlib::IPlayer &player) override;
   [[nodiscard]]
   std::unique_ptr<ICommand> clone() const override {
-    return std::make_unique<CommandChangeMidi>(*this);
+    return std::make_unique<CommandChangeInstrument>(*this);
   }
 };
 
 /// Increases or decreases the current MIDI instrument by `amount`
-class CommandMoveMidi : public ICommand {
+class CommandMoveInstrument : public ICommand {
   int amount;
 
 public:
-  CommandMoveMidi(int amount) : amount(amount) {}
+  CommandMoveInstrument(int amount): amount(amount) {}
 
   void execute(synthlib::IPlayer &player) override;
   [[nodiscard]]
   std::unique_ptr<ICommand> clone() const override {
-    return std::make_unique<CommandMoveMidi>(*this);
+    return std::make_unique<CommandMoveInstrument>(*this);
   }
 };
 
@@ -100,6 +101,19 @@ public:
   std::unique_ptr<ICommand> clone() const override {
     return std::make_unique<CommandAddOctave>(*this);
   }
+};
+
+class CommandIncreaseBpm : public ICommand {
+  int amount;
+
+public:
+  CommandIncreaseBpm(int amount) : amount(amount) {}
+  void execute(IPlayer &player) override;
+  [[nodiscard]]
+  std::unique_ptr<ICommand> clone() const override {
+    return std::make_unique<CommandIncreaseBpm>(*this);
+  }
+  
 };
 
 } // namespace synthlib

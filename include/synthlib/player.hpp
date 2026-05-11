@@ -61,12 +61,12 @@ public:
 class IPlayer {
 public:
   virtual ~IPlayer() = default;
-  IPlayer(const IPlayer &) = delete;
-  IPlayer(const IPlayer &&) = delete;
-  auto operator=(const IPlayer &) -> IPlayer & = delete;
-  auto operator=(const IPlayer &&) -> IPlayer & = delete;
+  // IPlayer(const IPlayer &) = delete;
+  // IPlayer(const IPlayer &&) = delete;
+  // auto operator=(const IPlayer &) -> IPlayer & = delete;
+  // auto operator=(const IPlayer &&) -> IPlayer & = delete;
 
-  virtual void config(const PlayerConfig &config) = 0;
+  // virtual void config(const PlayerConfig &config) = 0;
   virtual auto get_volume() -> int = 0;
   virtual void set_volume(int volume) = 0;
   virtual auto max_volume() -> int = 0;
@@ -91,7 +91,7 @@ class PrintPlayer : IPlayer {
   int _silence_beats = 0;
 
 public:
-  void config(const PlayerConfig &config) override;
+  void config(const PlayerConfig &config);
   auto get_volume() -> int override;
   void set_volume(int volume) override;
   auto max_volume() -> int override;

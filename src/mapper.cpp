@@ -1,5 +1,6 @@
 #include "synthlib/mapper.hpp"
 #include "synthlib/command.hpp"
+#include "synthlib/midi.hpp"
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -36,6 +37,10 @@ auto match_note(char ascii) -> optional<Note> {
   case 'H':
     note = Note::Bb;
     break;
+  case 'M':
+    note = Note::Eb;
+    break;
+
   default:
     note.reset();
   }
@@ -64,7 +69,7 @@ auto repeat(char last_char) -> std::unique_ptr<ICommand> {
 }
 
 constexpr auto OTHER_VOWELS = "iouIOU";
-constexpr auto OTHER_CONSONANTS = "jklmnpqrstvwxyzJKLMNPQRSTVWXYZ";
+constexpr auto OTHER_CONSONANTS = "jklmnpqrstvwxyzJKLNPQRSTVWXYZ";
 constexpr auto EVENS = "02468";
 constexpr auto ODDS = "13579";
 
@@ -81,10 +86,13 @@ auto ParseMapper::process(char ascii) -> std::unique_ptr<ICommand> {
     comm = mkcomm(CommandDoubleVolume());
 
   } else if (match_any(ascii, "!")) {
-    comm = mkcomm(CommandChangeMidi(24));
+    comm = mkcomm(CommandChangeInstrument(Instrument(Midi::Harmonica)));
+  } else if (match_any(ascii, ">")) {
+  }
+  
 
-  } else if (match_any(ascii, OTHER_VOWELS)) {
-    comm = mkcomm(CommandChangeMidi(110));
+  else if (match_any(ascii, OTHER_VOWELS)) {
+    comm = mkcomm(CommandChangeInstrument(Instrument(Midi::Bagpipe)));
 
   } else if (match_any(ascii, OTHER_CONSONANTS)) {
     comm = repeat(last_char);
@@ -96,14 +104,11 @@ auto ParseMapper::process(char ascii) -> std::unique_ptr<ICommand> {
   } else if (match_any(ascii, "?.")) {
     comm = mkcomm(CommandAddOctave(1));
 
-  } else if (match_any(ascii, "\n\r")) {
-    comm = mkcomm(CommandChangeMidi(123));
-
   } else if (match_any(ascii, ";") || match_any(ascii, ODDS)) {
-    comm = mkcomm(CommandChangeMidi(15));
+    comm = mkcomm(CommandChangeInstrument(Instrument(Midi::TubularBells)));
 
   } else if (match_any(ascii, ",")) {
-    comm = mkcomm(CommandChangeMidi(114));
+    comm = mkcomm(CommandChangeInstrument(Instrument(Midi::ChurchOrgan)));
 
   } else {
     comm = repeat(last_char);

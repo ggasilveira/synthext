@@ -5,8 +5,8 @@
 using namespace synthlib;
 
 void CommandNote::execute(IPlayer &player) { player.play_note(note); }
-void CommandChangeMidi::execute(IPlayer &player) { player.set_midi(midi); }
-void CommandMoveMidi::execute(IPlayer &player) {
+void CommandChangeInstrument::execute(IPlayer &player) { player.set_midi(midi); }
+void CommandMoveInstrument::execute(IPlayer &player) {
   player.set_midi(player.get_midi() + amount);
 }
 
@@ -23,4 +23,8 @@ void CommandAddOctave::execute(IPlayer &player) {
   int max_oct = player.max_octave();
 
   player.set_octave(std::min(new_oct, max_oct));
+}
+
+void CommandIncreaseBpm::execute(IPlayer &player) {
+  
 }
