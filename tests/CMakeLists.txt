@@ -6,7 +6,11 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(synthtest test.cpp)
-target_link_libraries(synthtest PRIVATE synthlib Catch2::Catch2WithMain)
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
-add_test(NAME testsynth COMMAND synthtest)
+add_executable(tests mapper.cpp)
+target_link_libraries(tests PRIVATE synthlib Catch2::Catch2WithMain)
+
+include(CTest)
+include(Catch)
+catch_discover_tests(tests)
