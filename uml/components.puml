@@ -1,0 +1,52 @@
+
+@startuml
+
+package "User Interface" {
+	[Text Editor] as editor
+	[Parameter Config] as params
+	[Playback Controls] as playback
+}
+
+[Source Manager] as file_manager
+() "load/save text" as file_ops
+() "save MIDI" as save_midi
+() "text buffer" as text_buffer
+() "MIDI buffer" as midi_buffer
+
+file_ops -- file_manager
+save_midi -- file_manager
+text_buffer -- file_manager
+midi_buffer -- file_manager
+
+package "SynthLib" {
+	[Compiler] as compiler
+	() "compile text to MIDI" as compile
+	compile -- compiler
+
+	[VoiceManager] as voice_manager
+	() "Voice parameters" as voice_params
+	voice_params -- voice_manager
+
+	compiler - voice_manager
+
+	[Player] as player
+	() "load MIDI file" as load_midi
+	() "play/pause/seek" as play_midi
+	play_midi -- player
+	load_midi -- player
+}
+
+
+editor ..> file_ops : use
+editor ..> save_midi : use
+editor ..> text_buffer : use
+
+file_manager ..> compile : use
+
+params ..> voice_params : use
+
+playback ..> load_midi : use
+playback ..> play_midi : use
+playback ..> midi_buffer : use
+
+@enduml
