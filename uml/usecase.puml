@@ -1,0 +1,40 @@
+@startuml
+left to right direction
+
+actor User as user
+
+package Synthext {
+	usecase "Load File" as load
+	usecase "Save File" as save
+	usecase "Edit File" as edit
+	usecase "Play File" as play
+	usecase "Save MIDI" as save_midi
+	usecase "Pause Sound" as pause
+	usecase "Stop sound" as stop
+	usecase "Change BPM" as bpm
+	usecase "Change Voice Octave" as octave
+	usecase "Change Voice Instrument" as instrument
+	usecase "Change Voice Volume" as volume
+	usecase "Select Voice" as voice
+	usecase "Synthesize File" as synth
+}
+user --> load
+user --> save
+user --> edit
+user --> play
+user --> bpm
+user --> octave
+user --> instrument
+user --> volume
+user --> pause
+user --> stop
+user --> save_midi
+
+play ..> synth
+save_midi ..> synth
+
+instrument ..> voice
+octave ..> voice
+volume ..> voice
+
+@enduml
