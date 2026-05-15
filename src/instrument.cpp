@@ -1,43 +1,44 @@
-#include "synthlib/midi.hpp"
+#include "synthlib/instrument.hpp"
 
-static const int MAX_PIANO = 7;
-static const int MAX_CHROMATIC_PERCUSSION = 15;
-static const int MAX_ORGAN = 23;
-static const int MAX_GUITAR = 31;
-static const int MAX_BASS = 39;
-static const int MAX_STRINGS = 47;
-static const int MAX_STRING_CONT = 55;
-static const int MAX_BRASS = 63;
-static const int MAX_REED = 71;
-static const int MAX_PIPE = 79;
-
-struct Group {
-  int min;
-  int max;
-  const char *name;
-};
-
-constexpr int GROUPS_LEN = 16;
-static const Group groups[GROUPS_LEN] = {
-  {.min=0, .max=7, .name="Piano"},
-  {.min=8, .max=15, .name="Chromatic Percussion"},
-  {.min=16, .max=23, .name="Organ"},
-  {.min=24, .max=31, .name="Guitar"},
-  {.min=32, .max=39, .name="Bass"},
-  {.min=40, .max=47, .name="Strings"},
-  {.min=48, .max=55, .name="Strings (continued)"},
-  {.min=56, .max=63, .name="Brass"},
-  {.min=64, .max=71, .name="Reed"},
-  {.min=72, .max=79, .name="Pipe"},
-  {.min=80, .max=87, .name="Synth Lead"},
-  {.min=88, .max=95, .name="Synth Pad"},
-  {.min=96, .max=103, .name="Synth Effects"},
-  {.min=104, .max=111, .name="Ethnic"},
-  {.min=112, .max=118, .name="Percussive"},
-  {.min=119, .max=127, .name="Sound effects"}
-};
-
-static const char * const names[128] = {
+namespace synthlib {
+  static const int MAX_PIANO = 7;
+  static const int MAX_CHROMATIC_PERCUSSION = 15;
+  static const int MAX_ORGAN = 23;
+  static const int MAX_GUITAR = 31;
+  static const int MAX_BASS = 39;
+  static const int MAX_STRINGS = 47;
+  static const int MAX_STRING_CONT = 55;
+  static const int MAX_BRASS = 63;
+  static const int MAX_REED = 71;
+  static const int MAX_PIPE = 79;
+  
+  struct Group {
+    int min;
+    int max;
+    const char *name;
+  };
+  
+  constexpr int GROUPS_LEN = 16;
+  static const Group groups[GROUPS_LEN] = {
+    {.min=0, .max=7, .name="Piano"},
+    {.min=8, .max=15, .name="Chromatic Percussion"},
+    {.min=16, .max=23, .name="Organ"},
+    {.min=24, .max=31, .name="Guitar"},
+    {.min=32, .max=39, .name="Bass"},
+    {.min=40, .max=47, .name="Strings"},
+    {.min=48, .max=55, .name="Strings (continued)"},
+    {.min=56, .max=63, .name="Brass"},
+    {.min=64, .max=71, .name="Reed"},
+    {.min=72, .max=79, .name="Pipe"},
+    {.min=80, .max=87, .name="Synth Lead"},
+    {.min=88, .max=95, .name="Synth Pad"},
+    {.min=96, .max=103, .name="Synth Effects"},
+    {.min=104, .max=111, .name="Ethnic"},
+    {.min=112, .max=118, .name="Percussive"},
+    {.min=119, .max=127, .name="Sound effects"}
+  };
+  
+  static const char * const names[128] = {
     "1 Acoustic Grand Piano",
     "2 Bright Acoustic Piano",
     "3 Electric Grand Piano",
@@ -167,33 +168,35 @@ static const char * const names[128] = {
     "127 Applause",
     "128 Gunshot",
   };
-
-
-const char *Instrument::name() const {
-  const int OFFSET_1DIGIT = 2;
-  const int OFFSET_2DIGIT = 3;
-  const int OFFSET_3DIGIT = 4;
-  int midi = to_int();
-  if (midi < 10) {
-    return name_numbered() + OFFSET_1DIGIT;
-  } else if (midi < 100) {
-    return name_numbered() + OFFSET_2DIGIT;
-  } else {
-    return name_numbered() + OFFSET_3DIGIT;
-  }
-}
-const char *Instrument::name_numbered() const {
-  return names[to_int()];
-}
-
-
-const char *Instrument::group_name() const {
-  int midi = to_int();
-  for (int i = 0; i < GROUPS_LEN; ++i) {
-    auto g = groups[i];
-    if (midi >= g.min && midi <= g.max) {
-      return g.name;
+  
+  
+  const char *Instrument::name() const {
+    const int OFFSET_1DIGIT = 2;
+    const int OFFSET_2DIGIT = 3;
+    const int OFFSET_3DIGIT = 4;
+    int midi = to_int();
+    if (midi < 10) {
+      return name_numbered() + OFFSET_1DIGIT;
+    } else if (midi < 100) {
+      return name_numbered() + OFFSET_2DIGIT;
+    } else {
+      return name_numbered() + OFFSET_3DIGIT;
     }
   }
-  return "";
+  const char *Instrument::name_numbered() const {
+    return names[to_int()];
+  }
+  
+  
+  const char *Instrument::group_name() const {
+    int midi = to_int();
+    for (int i = 0; i < GROUPS_LEN; ++i) {
+      auto g = groups[i];
+      if (midi >= g.min && midi <= g.max) {
+	return g.name;
+      }
+    }
+    return "";
+  }
+
 }

@@ -1,7 +1,7 @@
 #include "controls.hpp"
 #include <string.h>
 #include <stdlib.h>
-#include "synthlib/midi.hpp"
+#include "synthlib/instrument.hpp"
 #include <stdio.h>
 
 void add_instruments(Fl_Choice &instrs) {

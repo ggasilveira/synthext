@@ -5,7 +5,7 @@ project(Synthext VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+# set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
 #include(CTest)
 include(FetchContent)

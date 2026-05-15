@@ -1,0 +1,35 @@
+@startuml
+
+class VoiceManager {
+	-Map<Voice, Volume> volume_overrides
+	-Map<Voice, Octave> octave_overrides
+	-Map<Voice, Instrument> instrument_overrides
+	+void override_volume(voice, volume)
+	+void override_octave(voice, octave)
+	+void override_instrument(voice, instrument)
+	+void reset_volume(voice)
+	+void reset_octave(voice)
+	+void reset_instrument(voice)
+	+Voice get_volume(voice)
+	+Octave get_octave(voice)
+	+Instrument get_instrument(voice)
+}
+
+class MidiCommand {
+
+}
+
+class MidiFile {
+	-byte[] contents
+	+byte[] get_contents()
+	+void write_midi(midi_cc)
+}
+
+
+class Compiler {
+	+MidiFile compile(String)
+	
+}
+
+
+@enduml

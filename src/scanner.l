@@ -5,7 +5,7 @@
 %option nounistd
 %option never-interactive
 
-	    		note [A-G] | [A-G]b | [A-G]"#" | "Mb" | "H"
+			note [A-H] | "Mb" | "H"
 			pause [a-h]
 			space " "
 			othervowel [iouIOU]
@@ -20,25 +20,8 @@
 "E" {return E;}
 "F" {return F;}
 "G" {return G;}
-
-"Ab" {return A_FLAT;}
-"Bb" {return B_FLAT;}
-"Cb" {return C_FLAT;}
-"Db" {return D_FLAT;}
-"Eb" {return E_FLAT;}
-"Fb" {return F_FLAT;}
-"Gb" {return G_FLAT;}
-"H"  {return B_FLAT;}
+"H" {return B_FLAT;}
 "Mb" {return E_FLAT;}
-
-
-"A#" {return A_SHARP;}
-"B#" {return B_SHARP;}
-"C#" {return C_SHARP;}
-"D#" {return D_SHARP;}
-"E#" {return E_SHARP;}
-"F#" {return F_SHARP;}
-"G#" {return G_SHARP;}
 
 {pause} {return PAUSE;}
 [ \t] /* skip single spaces */

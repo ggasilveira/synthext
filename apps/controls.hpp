@@ -8,8 +8,10 @@
 #include <FL/Fl_Scroll.H>
 #include <FL/Fl_Select_Browser.H>
 #include <FL/Fl_Choice.H>
-#include <synthlib/midi.hpp>
+#include "synthlib/instrument.hpp"
 #include <vector>
+
+using namespace synthlib;
 
 struct Voice {
   int octave = 0;
