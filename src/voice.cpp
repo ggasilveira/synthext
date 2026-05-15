@@ -92,6 +92,51 @@ namespace synthlib {
     CHECK(manager.get_volume(7).value() == 40);
     CHECK(manager.get_volume(8).value() == 100);
 
+    manager.override_volume(3, Volume(75));
+    CHECK(manager.get_volume(3).value() == 75);
+    manager.reset_volume(3);
+    CHECK(manager.get_volume(3).value() == 40);
+
+  }
+
+  TEST_CASE("testing octave overrides") {
+    VoiceManager manager;
+
+    CHECK(manager.get_octave(0).value() == 6);
+    CHECK(manager.get_octave(1).value() == 5);
+    CHECK(manager.get_octave(2).value() == 4);
+    CHECK(manager.get_octave(3).value() == 3);
+    CHECK(manager.get_octave(4).value() == 6);
+    CHECK(manager.get_octave(5).value() == 5);
+    CHECK(manager.get_octave(6).value() == 4);
+    CHECK(manager.get_octave(7).value() == 3);
+    CHECK(manager.get_octave(8).value() == 6);
+
+    manager.override_octave(3, Octave(8));
+    CHECK(manager.get_octave(3).value() == 8);
+    manager.reset_octave(3);
+    CHECK(manager.get_octave(3).value() == 3);
+
+  }
+
+  TEST_CASE("testing instrument overrides") {
+    VoiceManager manager;
+
+    CHECK(manager.get_instrument(0).midi() == Midi::AcousticGrandPiano);
+    CHECK(manager.get_instrument(1).midi() == Midi::ReedOrgan);
+    CHECK(manager.get_instrument(2).midi() == Midi::Harpsichord);
+    CHECK(manager.get_instrument(3).midi() == Midi::Clarinet);
+    CHECK(manager.get_instrument(4).midi() == Midi::AcousticGrandPiano);
+    CHECK(manager.get_instrument(5).midi() == Midi::ReedOrgan);
+    CHECK(manager.get_instrument(6).midi() == Midi::Harpsichord);
+    CHECK(manager.get_instrument(7).midi() == Midi::Clarinet);
+    CHECK(manager.get_instrument(8).midi() == Midi::AcousticGrandPiano);
+
+    manager.override_instrument(3, Instrument(Midi::Accordion));
+    CHECK(manager.get_instrument(3).midi() == Midi::Accordion);
+    manager.reset_instrument(3);
+    CHECK(manager.get_instrument(3).midi() == Midi::Clarinet);
+    
   }
 
 

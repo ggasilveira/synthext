@@ -26,6 +26,7 @@ namespace synthlib {
     }
     /// Gets the volume value
     /// @return The volume value
+    [[nodiscard]]
     uint8_t value() {
       return _vol;
     }
@@ -49,6 +50,12 @@ namespace synthlib {
       if (_octave > MAX) {
 	throw std::invalid_argument("exceeded maximum octave");
       }
+    }
+    /// Gets the octave value
+    /// @return The octave value
+    [[nodiscard]]
+    uint8_t value() {
+      return _octave;
     }
 
   private:
