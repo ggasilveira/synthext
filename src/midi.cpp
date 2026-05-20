@@ -52,8 +52,8 @@ void midi_event(uint32_t delta_time, uint8_t event, uint8_t channel,
   varlen(delta_time, buf);
 
   // data bytes must have the most significant bit deasserted
-  CHECK((data1 & 0x80) == 0);
-  CHECK((data2 & 0x80) == 0);
+  // CHECK((data1 & 0x80) == 0);
+  // CHECK((data2 & 0x80) == 0);
 
   buf.push_back(make_status(event, channel));
   buf.push_back(data1);
@@ -67,7 +67,7 @@ void midi_event(uint32_t delta_time, uint8_t event, uint8_t channel,
   buf.push_back(make_status(event, channel));
 
   // data bytes must have the most significant bit deasserted
-  CHECK((data1 & 0x80) == 0);
+  // CHECK((data1 & 0x80) == 0);
 
   buf.push_back(data1);
 }

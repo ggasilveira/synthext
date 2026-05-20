@@ -1,7 +1,10 @@
 #pragma once
+#include "synthlib/voice.hpp"
+#include <string>
+#include <vector>
 
-class Compiler {
+namespace synthlib {
 
+std::vector<uint8_t> compile(const VoiceManager &params, std::string source);
 
-  
-};
+} // namespace synthlib

@@ -19,15 +19,28 @@ class MidiCommand {
 
 }
 
-class MidiFile {
-	-byte[] contents
-	+byte[] get_contents()
-	+void write_midi(midi_cc)
+class MidiCreator {
 }
 
 
 class Compiler {
 	+MidiFile compile(String)
+	
+}
+
+class Instrument {
+	
+}
+
+class Octave {
+	
+}
+
+class Note {
+	
+}
+
+class Volume {
 	
 }
 
