@@ -8,6 +8,7 @@ set(SOURCE_FILES
   instrument.cpp
   generator.cpp
   voice.cpp
+  midi.cpp
 )
 add_library(synthlib STATIC ${SOURCE_FILES} ${FLEX_CommandScanner_OUTPUTS})
 
