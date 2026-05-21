@@ -1,5 +1,7 @@
 #include "synthlib/compiler.hpp"
 #include "doctest.h"
+#include "synthlib/bpm.hpp"
+#include "synthlib/command.hpp"
 #include "synthlib/midi.hpp"
 #include <array>
 #include <iostream>
@@ -11,95 +13,6 @@
 using std::vector, std::string_view, std::variant;
 
 namespace synthlib {
-enum class CommandKind : uint8_t {
-  PlayNote,
-  Pause,
-  PauseOrRepeat,
-  Delay,
-  IncreaseBpm,
-  DecreaseBpm,
-  IncreaseOctave,
-  DecreaseOctave,
-  DoubleVolume,
-  ChangeInstrument,
-  IncreaseInstrument
-};
-
-class Command {
-private:
-  CommandKind _kind;
-  variant<Note, uint32_t, Instrument> value;
-
-public:
-  Command() : _kind(CommandKind::PauseOrRepeat), value((uint32_t)0) {}
-  Command(Note note) : _kind(CommandKind::PlayNote), value(note) {}
-  Command(Instrument instr)
-      : _kind(CommandKind::ChangeInstrument), value(instr) {}
-  Command(CommandKind kind, uint32_t value) : _kind(kind), value(value) {}
-  Command(CommandKind kind) : _kind(kind), value((uint32_t)0) {}
-
-  CommandKind kind() const { return _kind; }
-  Note note() const { return std::get<Note>(value); }
-  uint32_t amount() const { return std::get<uint32_t>(value); }
-  Instrument instrument() const { return std::get<Instrument>(value); }
-  void debug() {
-    switch (_kind) {
-    case CommandKind::ChangeInstrument:
-      std::cout << "CH_INSTRUMENT(" << std::get<Instrument>(value).name()
-                << ")";
-      break;
-    case CommandKind::PlayNote:
-      std::cout << "NOTE";
-      break;
-    case CommandKind::Pause:
-      std::cout << "PAUSE";
-      break;
-    case CommandKind::PauseOrRepeat:
-      std::cout << "PAUSE_REP";
-      break;
-    case CommandKind::Delay:
-      std::cout << "DELAY";
-      break;
-    case CommandKind::IncreaseBpm:
-      std::cout << "INC_BPM";
-      break;
-    case CommandKind::DecreaseBpm:
-      std::cout << "DEC_BPM";
-      break;
-    case CommandKind::IncreaseOctave:
-      std::cout << "INC_OCTAVE";
-      break;
-    case CommandKind::DecreaseOctave:
-      std::cout << "DEC_OCTAVE";
-      break;
-    case CommandKind::DoubleVolume:
-      std::cout << "DOUBLE_VOL";
-      break;
-    case CommandKind::IncreaseInstrument:
-      std::cout << "INC_INSTR";
-      break;
-    }
-  }
-};
-
-bool operator==(const Command &lhs, const Command &rhs) {
-  if (lhs.kind() != rhs.kind()) {
-    return false;
-  }
-  switch (lhs.kind()) {
-  case CommandKind::PlayNote:
-    return lhs.note() == rhs.note();
-    break;
-  case CommandKind::Delay:
-  case CommandKind::IncreaseInstrument:
-    return lhs.amount() == rhs.amount();
-    break;
-  case CommandKind::ChangeInstrument:
-    return lhs.instrument().midi() == rhs.instrument().midi();
-  default:
-    return true;
-  }
-}
 
 using cursor = string_view::size_type;
 
@@ -111,7 +24,7 @@ static const char *Mb_s = "+";
 
 // Mapping for synthext language
 // We replace all occurrences of "Mb", which is the only
-// multi-letter token to "+", which is an unused character
+// multi-letter token with "+", which is an unused character
 // so we can use an array to map characters to commands.
 mapping build_map() {
   mapping map{};
@@ -152,14 +65,14 @@ mapping build_map() {
   map['V'] = Command(CommandKind::DecreaseOctave);
 
   // bpm commands
-  map['<'] = Command(CommandKind::DecreaseBpm);
-  map['>'] = Command(CommandKind::IncreaseBpm);
+  map['<'] = Command(CommandKind::DecreaseBpm, 10);
+  map['>'] = Command(CommandKind::IncreaseBpm, 10);
 
   return map;
 }
 
 /// Parses a delay clause "[<number>]"
-int parse_delay(std::string_view delay) {
+static int parse_delay(std::string_view delay) {
   int out = 0;
   std::cout << "DELAY: " << delay << "\n";
   for (auto c : delay) {
@@ -174,8 +87,9 @@ int parse_delay(std::string_view delay) {
 }
 
 /// Compiles a single line into a voice
-voiceline compile_line(const std::string &line, mapping const &map) {
-  // replace all occurrences of "Mb" -> "+"
+static voiceline compile_line(const std::string &line, mapping const &map) {
+
+  // replace all occurrences of "Mb" with "+"
   std::regex Mb_pattern("Mb");
   auto linefix = std::regex_replace(line, Mb_pattern, Mb_s);
 
@@ -184,6 +98,7 @@ voiceline compile_line(const std::string &line, mapping const &map) {
   char last_char = 0;
   string_view::size_type cursor = 0;
 
+  // parse delay specifier
   if (linefix.at(0) == '[') {
     cursor = linefix.find(']');
     if (cursor == string_view::npos) {
@@ -220,31 +135,100 @@ std::vector<std::string> get_lines(std::string &source) {
   return lines;
 }
 
-// std::vector<uint8_t> create_midi(const VoiceManager params,
-//                                  std::vector<voiceline> voices) {
-//   MidiCreator creator;
-//   for (int i = 0; i < voices.size(); ++i) {
-//     creator.goto_track(i);
-//     if (i == 0) {
-//       creator.set_bpm(params.get_bpm());
-//     }
-//     for (auto command : voices.at(i)) {
-//       Command last_comm;
-//       switch (command.kind()) {
-//       case CommandKind::Delay:
-//         creator.play_pause(command.amount());
-//         break;
-//       case CommandKind::Pause:
-//         creator.play_pause();
-//         break;
-//       case CommandKind::PauseOrRepeat:
-//         if (last_comm.kind() == CommandKind::PlayNote) {
-//           creator.play_note()
-//         }
-//       }
-//     }
-//   }
-// }
+int voice2track(int voice) { return voice + 1; }
+
+void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
+                       BpmManager &bpm_man, voiceline &voice, int voice_num,
+                       int track_num) {
+  // we need to keep count of elapsed beats to send bpm changes
+  // to the bpm manager
+  uint32_t elapsed = 0;
+  // last command for pause or repeat
+  Command last;
+  Channel channel(voice_num);
+  // get the initial parameters
+  Instrument instr = params.get_instrument(voice_num);
+  Octave octave = params.get_octave(voice_num);
+  Volume volume = params.get_volume(voice_num);
+
+  creator.goto_track(track_num);
+
+  for (auto command : voice) {
+    switch (command.kind()) {
+    case CommandKind::Delay:
+      creator.play_pause(command.amount());
+      elapsed += command.amount();
+      break;
+    case CommandKind::Pause:
+      creator.play_pause();
+      elapsed += 1;
+      break;
+    case CommandKind::PauseOrRepeat:
+      if (last.kind() == CommandKind::PlayNote) {
+        creator.play_note(channel, last.note(), octave, volume);
+      } else {
+        creator.play_pause();
+      }
+      elapsed += 1;
+      break;
+    case CommandKind::PlayNote:
+      creator.play_note(channel, last.note(), octave, volume);
+      elapsed += 1;
+      break;
+    case CommandKind::ChangeInstrument:
+      instr = command.instrument();
+      creator.change_instrument(channel, instr);
+      break;
+    case CommandKind::IncreaseInstrument:
+      instr = Instrument(instr.to_int() + command.amount());
+      creator.change_instrument(channel, instr);
+      break;
+    case CommandKind::IncreaseOctave:
+      if (octave.value() < Octave::MAX) {
+        octave = Octave(octave.value() + 1);
+      } else {
+        octave = params.get_octave(voice_num);
+      }
+      break;
+    case CommandKind::DecreaseOctave:
+      if (octave.value() > Octave::MIN) {
+        octave = Octave(octave.value() - 1);
+      } else {
+        octave = params.get_octave(voice_num);
+      }
+      break;
+    case CommandKind::IncreaseBpm:
+      bpm_man.change_bpm(elapsed, (int32_t)command.amount());
+      break;
+    case CommandKind::DecreaseBpm:
+      bpm_man.change_bpm(elapsed, -(int32_t)command.amount());
+      break;
+    case CommandKind::DoubleVolume:
+      try {
+        volume = Volume(volume.value() * 2);
+      } catch (...) {
+        volume = Volume(Volume::MAX);
+      }
+      break;
+    }
+    last = command;
+  }
+}
+
+std::vector<uint8_t> create_midi(const VoiceManager &params,
+                                 std::vector<voiceline> voices) {
+  MidiCreator creator;
+  BpmManager bpm_man(params.get_bpm());
+  if (voices.size() > (Channel::CHANNEL_MAX + 1)) {
+    voices.resize(Channel::CHANNEL_MAX + 1);
+  }
+  for (int i = 0; i < voices.size(); ++i) {
+    // we reserve space for track 0 to be the bpm track
+    create_midi_voice(creator, params, bpm_man, voices.at(i), i, i + 1);
+  }
+  bpm_man.write_bpm_track(creator, 0);
+  return creator.generate_file();
+}
 
 std::vector<uint8_t> compile(const VoiceManager &params, std::string source) {
 
@@ -260,6 +244,7 @@ std::vector<uint8_t> compile(const VoiceManager &params, std::string source) {
     }
     voices.push_back(compile_line(line, map));
   }
+  return create_midi(params, voices);
 }
 // NOLINTBEGIN
 

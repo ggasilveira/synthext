@@ -31,8 +31,8 @@ void write_32bit(uint32_t number, std::vector<uint8_t> &buf) {
 }
 // NOLINTEND
 
-uint8_t make_status(uint8_t event, uint8_t channel) {
-  return (event << 4) | (channel & 0xF);
+uint8_t make_status(uint8_t event, Channel channel) {
+  return (event << 4) | (channel.value() & 0xF);
 }
 
 /// converts a note + octave into a MIDI note from 0 to 127
@@ -47,7 +47,7 @@ uint8_t note2midi(Note note, Octave octave) {
   return res;
 }
 
-void midi_event(uint32_t delta_time, uint8_t event, uint8_t channel,
+void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
                 uint8_t data1, uint8_t data2, std::vector<uint8_t> &buf) {
   varlen(delta_time, buf);
 
@@ -60,7 +60,7 @@ void midi_event(uint32_t delta_time, uint8_t event, uint8_t channel,
   buf.push_back(data2);
 }
 
-void midi_event(uint32_t delta_time, uint8_t event, uint8_t channel,
+void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
                 uint8_t data1, std::vector<uint8_t> &buf) {
 
   varlen(delta_time, buf);
@@ -100,18 +100,18 @@ void set_tempo(uint32_t delta_time, uint32_t bpm, std::vector<uint8_t> &buf) {
   buf.push_back(b2);
 }
 
-void note_on(uint32_t delta_time, uint8_t channel, Note note, Octave octave,
+void note_on(uint32_t delta_time, Channel channel, Note note, Octave octave,
              uint8_t velocity, std::vector<uint8_t> &buf) {
   midi_event(delta_time, NOTE_ON, channel, note2midi(note, octave), velocity,
              buf);
 }
-void note_off(uint32_t delta_time, uint8_t channel, Note note, Octave octave,
+void note_off(uint32_t delta_time, Channel channel, Note note, Octave octave,
               uint8_t velocity, std::vector<uint8_t> &buf) {
   midi_event(delta_time, NOTE_OFF, channel, note2midi(note, octave), velocity,
              buf);
 }
 
-void all_notes_off(uint32_t delta_time, uint8_t channel,
+void all_notes_off(uint32_t delta_time, Channel channel,
                    std::vector<uint8_t> &buf) {
   const uint8_t notes_off_c = 127;
   const uint8_t notes_off_v = 0;
@@ -119,26 +119,22 @@ void all_notes_off(uint32_t delta_time, uint8_t channel,
   midi_event(delta_time, status, notes_off_c, notes_off_v, buf);
 }
 
-void prog_change(uint32_t delta_time, uint8_t channel, Instrument instr,
+void prog_change(uint32_t delta_time, Channel channel, Instrument instr,
                  std::vector<uint8_t> &buf) {
   midi_event(delta_time, PROG_CHANGE, channel, instr.to_int(), buf);
 }
 
 void MidiCreator::goto_track(int track_num) {
-  // each track has one channel and the maximum number of channels
-  // is 16.
-  const int NUM_TRACKS = 16;
   if (track_num >= tracks.size()) {
     tracks.resize(track_num + 1);
   }
-  if (track_num >= NUM_TRACKS) {
-    throw std::invalid_argument("exceeded maximum tracks");
-  }
   curr_track = track_num;
 }
-void MidiCreator::play_note(Note note, Octave octave, Volume volume) {
+void MidiCreator::play_note(Channel channel, Note note, Octave octave,
+                            Volume volume) {
   Track &track = tracks.at(curr_track);
-  note_on(track.delta, curr_track, note, octave, volume.value(), track.buf);
+  note_on(track.delta, channel.value(), note, octave, volume.value(),
+          track.buf);
   note_off(BEAT_DELTA, curr_track, note, octave, volume.value(), track.buf);
   track.delta = 0;
 }
@@ -152,9 +148,9 @@ void MidiCreator::play_pause(uint32_t n) {
   track.delta += BEAT_DELTA * n;
 }
 
-void MidiCreator::change_instrument(Instrument instr) {
+void MidiCreator::change_instrument(Channel channel, Instrument instr) {
   Track &track = tracks.at(curr_track);
-  prog_change(track.delta, curr_track, instr, track.buf);
+  prog_change(track.delta, channel, instr, track.buf);
   // we already advanced the delta cursor, so we zero it
   // as we want the next event to play immediately
   track.delta = 0;

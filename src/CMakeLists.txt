@@ -1,7 +1,5 @@
-find_package(FLEX REQUIRED)
 find_package(FluidSynth CONFIG REQUIRED)
 
-# FLEX_TARGET(CommandScanner scanner.l "${CMAKE_CURRENT_BINARY_DIR}/scanner.cpp")
 
 set(SOURCE_FILES
   instrument.cpp
@@ -9,8 +7,9 @@ set(SOURCE_FILES
   midi.cpp
   compiler.cpp
   bpm.cpp
+  command.cpp
 )
-add_library(synthlib STATIC ${SOURCE_FILES} ${FLEX_CommandScanner_OUTPUTS})
+add_library(synthlib STATIC ${SOURCE_FILES})
 
 target_include_directories(synthlib PUBLIC ../include)
 target_compile_features(synthlib PUBLIC cxx_std_17)

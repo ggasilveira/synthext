@@ -9,7 +9,7 @@ struct BpmChange {
   /// absolute time in beats
   uint32_t beats;
   /// increase/decrease in bpm
-  int32_t bpm_delta;
+  int bpm_delta;
 };
 
 /// This class manages bpm synchronization across voices.
@@ -22,9 +22,11 @@ class BpmManager {
 public:
   /// Creates a BpmManager with the initial bpm
   BpmManager(int bpm) : initial_bpm(bpm) {}
+  /// Issues a bpm change in absolute time.
+  void change_bpm(uint32_t beats, int delta);
   /// This function creates a dedicated track to
   /// issue bpm change events.
-  void write_bpm_track(MidiCreator &creator);
+  void write_bpm_track(MidiCreator &creator, int track_n);
 
 private:
   int initial_bpm;

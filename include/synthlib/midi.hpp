@@ -1,6 +1,7 @@
 #pragma once
 
 #include "synthlib/instrument.hpp"
+#include "synthlib/note.hpp"
 #include "synthlib/octave.hpp"
 #include "synthlib/volume.hpp"
 #include <cstdint>
@@ -9,29 +10,24 @@
 
 namespace synthlib {
 
-enum class Note : uint8_t {
-  C = 0,
-  Cs = 1,
-  Db = 1,
-  D = 2,
-  Ds = 3,
-  Eb = 3,
-  E = 4,
-  F = 5,
-  Fs = 6,
-  Gb = 6,
-  G = 7,
-  Gs = 8,
-  Ab = 8,
-  A = 9,
-  As = 10,
-  Bb = 10,
-  B = 11,
-};
-
 struct Track {
   std::vector<uint8_t> buf;
   uint32_t delta = 0;
+};
+
+class Channel {
+public:
+  static constexpr uint8_t CHANNEL_MAX = 15;
+  Channel(uint8_t channel) {
+    if (channel > CHANNEL_MAX) {
+      throw std::invalid_argument("channel value too high");
+    }
+    chan = channel;
+  }
+  uint8_t value() const { return chan; }
+
+private:
+  uint8_t chan;
 };
 
 /// This class is responsible for writing the MIDI file.
@@ -40,13 +36,13 @@ public:
   /// Set the writer to the specified track
   void goto_track(int track_num);
   /// Plays the note for one beat in the current track
-  void play_note(Note note, Octave octave, Volume volume);
+  void play_note(Channel channel, Note note, Octave octave, Volume volume);
   /// Plays n beats of silence
   void play_pause(uint32_t n);
   /// Plays a beat of silence
   void play_pause();
   /// Changes the track's instrument
-  void change_instrument(Instrument instr);
+  void change_instrument(Channel channel, Instrument instr);
   /// Sets the global bpm
   void set_bpm(uint32_t bpm);
 
