@@ -1,5 +1,5 @@
 #pragma once
-#include "synthlib/voice.hpp"
+#include "synthlib/voice_manager.hpp"
 #include <string>
 #include <vector>
 

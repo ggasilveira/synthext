@@ -1,8 +1,7 @@
 #include "synthlib/compiler.hpp"
-#include "doctest.h"
-#include "synthlib/bpm.hpp"
+#include "synthlib/bpm_manager.hpp"
 #include "synthlib/command.hpp"
-#include "synthlib/midi.hpp"
+#include "synthlib/midi_creator.hpp"
 #include <array>
 #include <iostream>
 #include <regex>
@@ -138,18 +137,18 @@ std::vector<std::string> get_lines(std::string &source) {
 int voice2track(int voice) { return voice + 1; }
 
 void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
-                       BpmManager &bpm_man, voiceline &voice, int voice_num,
+                       BpmManager &bpm_man, voiceline &voice, VoiceId voice_id,
                        int track_num) {
   // we need to keep count of elapsed beats to send bpm changes
   // to the bpm manager
   uint32_t elapsed = 0;
   // last command for pause or repeat
   Command last;
-  Channel channel(voice_num);
+  Channel channel(voice_id.value());
   // get the initial parameters
-  Instrument instr = params.get_instrument(voice_num);
-  Octave octave = params.get_octave(voice_num);
-  Volume volume = params.get_volume(voice_num);
+  Instrument instr = params.get_instrument(voice_id);
+  Octave octave = params.get_octave(voice_id);
+  Volume volume = params.get_volume(voice_id);
 
   creator.goto_track(track_num);
 
@@ -187,14 +186,14 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
       if (octave.value() < Octave::MAX) {
         octave = Octave(octave.value() + 1);
       } else {
-        octave = params.get_octave(voice_num);
+        octave = params.get_octave(voice_id);
       }
       break;
     case CommandKind::DecreaseOctave:
       if (octave.value() > Octave::MIN) {
         octave = Octave(octave.value() - 1);
       } else {
-        octave = params.get_octave(voice_num);
+        octave = params.get_octave(voice_id);
       }
       break;
     case CommandKind::IncreaseBpm:
@@ -219,12 +218,13 @@ std::vector<uint8_t> create_midi(const VoiceManager &params,
                                  std::vector<voiceline> voices) {
   MidiCreator creator;
   BpmManager bpm_man(params.get_bpm());
-  if (voices.size() > (Channel::CHANNEL_MAX + 1)) {
-    voices.resize(Channel::CHANNEL_MAX + 1);
+  if (voices.size() > (VoiceId::MAX + 1)) {
+    voices.resize(VoiceId::MAX + 1);
   }
   for (int i = 0; i < voices.size(); ++i) {
     // we reserve space for track 0 to be the bpm track
-    create_midi_voice(creator, params, bpm_man, voices.at(i), i, i + 1);
+    create_midi_voice(creator, params, bpm_man, voices.at(i), VoiceId(i),
+                      i + 1);
   }
   bpm_man.write_bpm_track(creator, 0);
   return creator.generate_file();
@@ -246,7 +246,13 @@ std::vector<uint8_t> compile(const VoiceManager &params, std::string source) {
   }
   return create_midi(params, voices);
 }
+} // namespace synthlib
+
 // NOLINTBEGIN
+#ifdef CFG_TEST
+#include "doctest.h"
+
+using namespace synthlib;
 
 TEST_CASE("Line separating") {
   std::string s("line 1\nline 2 \n\n line 4");
@@ -288,7 +294,5 @@ TEST_CASE("voice parsing notes") {
     CHECK(voice.at(i) == expected.at(i));
   }
 }
-
+#endif
 // NOLINTEND
-
-} // namespace synthlib

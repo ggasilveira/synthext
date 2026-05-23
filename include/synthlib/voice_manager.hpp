@@ -1,13 +1,10 @@
 #pragma once
 
 #include "synthlib/instrument.hpp"
-#include "synthlib/octave.hpp"
-#include "synthlib/volume.hpp"
+#include "synthlib/primitives.hpp"
 #include <map>
 
 namespace synthlib {
-
-using VoiceId = unsigned int;
 
 /// This class is responsible for setting
 /// the voices initial parameters. Voices
@@ -18,7 +15,7 @@ class VoiceManager {
 public:
   /// Sets the starting BPM
   /// @param bpm the starting bpm
-  void set_bpm(uint32_t bpm);
+  void set_bpm(Bpm bpm);
   /// Overrides a voice's initial volume
   /// @param voice the voice number
   /// @param volume the desired volume
@@ -67,13 +64,13 @@ public:
 
   /// Gets the starting bpm
   /// @return The starting bpm
-  uint32_t get_bpm() const;
+  Bpm get_bpm() const;
 
 private:
   std::map<VoiceId, Volume> volume_overrides;
   std::map<VoiceId, Octave> octave_overrides;
   std::map<VoiceId, Instrument> instrument_overrides;
-  uint32_t bpm = 120;
+  Bpm _bpm;
 };
 
 } // namespace synthlib

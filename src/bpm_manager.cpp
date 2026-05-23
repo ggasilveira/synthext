@@ -1,5 +1,6 @@
-#include "synthlib/bpm.hpp"
-#include "synthlib/midi.hpp"
+#include "synthlib/bpm_manager.hpp"
+#include "synthlib/midi_creator.hpp"
+#include "synthlib/primitives.hpp"
 #include <algorithm>
 
 namespace synthlib {
@@ -15,12 +16,12 @@ void BpmManager::write_bpm_track(MidiCreator &creator, int track_n) {
 
   creator.goto_track(track_n);
 
-  int bpm = initial_bpm;
+  Bpm bpm = initial_bpm;
   uint32_t beats = 0;
   creator.set_bpm(bpm);
 
   for (auto bpm_change : changes) {
-    bpm += bpm_change.bpm_delta;
+    bpm = bpm.add_saturated(bpm_change.bpm_delta);
     creator.play_pause(bpm_change.beats - beats);
     creator.set_bpm(bpm);
     beats = bpm_change.beats;

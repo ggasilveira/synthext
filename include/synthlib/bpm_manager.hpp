@@ -1,5 +1,6 @@
 #pragma once
-#include "synthlib/midi.hpp"
+#include "synthlib/midi_creator.hpp"
+#include "synthlib/primitives.hpp"
 #include <vector>
 
 namespace synthlib {
@@ -21,7 +22,7 @@ class BpmManager {
 
 public:
   /// Creates a BpmManager with the initial bpm
-  BpmManager(int bpm) : initial_bpm(bpm) {}
+  BpmManager(Bpm bpm) : initial_bpm(bpm) {}
   /// Issues a bpm change in absolute time.
   void change_bpm(uint32_t beats, int delta);
   /// This function creates a dedicated track to
@@ -29,7 +30,7 @@ public:
   void write_bpm_track(MidiCreator &creator, int track_n);
 
 private:
-  int initial_bpm;
+  Bpm initial_bpm;
   std::vector<BpmChange> changes;
 };
 

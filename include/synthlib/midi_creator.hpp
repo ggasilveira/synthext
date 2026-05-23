@@ -1,9 +1,7 @@
 #pragma once
 
 #include "synthlib/instrument.hpp"
-#include "synthlib/note.hpp"
-#include "synthlib/octave.hpp"
-#include "synthlib/volume.hpp"
+#include "synthlib/primitives.hpp"
 #include <cstdint>
 #include <stdexcept>
 #include <vector>
@@ -13,21 +11,6 @@ namespace synthlib {
 struct Track {
   std::vector<uint8_t> buf;
   uint32_t delta = 0;
-};
-
-class Channel {
-public:
-  static constexpr uint8_t CHANNEL_MAX = 15;
-  Channel(uint8_t channel) {
-    if (channel > CHANNEL_MAX) {
-      throw std::invalid_argument("channel value too high");
-    }
-    chan = channel;
-  }
-  uint8_t value() const { return chan; }
-
-private:
-  uint8_t chan;
 };
 
 /// This class is responsible for writing the MIDI file.
@@ -44,7 +27,7 @@ public:
   /// Changes the track's instrument
   void change_instrument(Channel channel, Instrument instr);
   /// Sets the global bpm
-  void set_bpm(uint32_t bpm);
+  void set_bpm(Bpm bpm);
 
   std::vector<uint8_t> generate_file();
 

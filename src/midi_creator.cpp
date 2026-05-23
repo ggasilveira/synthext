@@ -1,5 +1,4 @@
-#include "synthlib/midi.hpp"
-#include "doctest.h"
+#include "synthlib/midi_creator.hpp"
 #include <array>
 #include <stdexcept>
 
@@ -79,12 +78,12 @@ void end_of_track(uint32_t delta_time, std::vector<uint8_t> &buf) {
     buf.push_back(b);
   }
 }
-uint32_t bpm2tempo(uint32_t bpm) {
+uint32_t bpm2tempo(Bpm bpm) {
   const uint32_t us_per_min = 60000000;
-  return us_per_min / bpm;
+  return us_per_min / bpm.value();
 }
 
-void set_tempo(uint32_t delta_time, uint32_t bpm, std::vector<uint8_t> &buf) {
+void set_tempo(uint32_t delta_time, Bpm bpm, std::vector<uint8_t> &buf) {
   const std::array<uint8_t, 3> bytes{0xff, 0x51, 0x03};
   varlen(delta_time, buf);
   for (auto b : bytes) {
@@ -101,22 +100,22 @@ void set_tempo(uint32_t delta_time, uint32_t bpm, std::vector<uint8_t> &buf) {
 }
 
 void note_on(uint32_t delta_time, Channel channel, Note note, Octave octave,
-             uint8_t velocity, std::vector<uint8_t> &buf) {
-  midi_event(delta_time, NOTE_ON, channel, note2midi(note, octave), velocity,
-             buf);
+             Volume velocity, std::vector<uint8_t> &buf) {
+  midi_event(delta_time, NOTE_ON, channel, note2midi(note, octave),
+             velocity.value(), buf);
 }
 void note_off(uint32_t delta_time, Channel channel, Note note, Octave octave,
-              uint8_t velocity, std::vector<uint8_t> &buf) {
-  midi_event(delta_time, NOTE_OFF, channel, note2midi(note, octave), velocity,
-             buf);
+              Volume velocity, std::vector<uint8_t> &buf) {
+  midi_event(delta_time, NOTE_OFF, channel, note2midi(note, octave),
+             velocity.value(), buf);
 }
 
 void all_notes_off(uint32_t delta_time, Channel channel,
                    std::vector<uint8_t> &buf) {
   const uint8_t notes_off_c = 127;
   const uint8_t notes_off_v = 0;
-  uint8_t status = make_status(CHANNEL_MODE, channel);
-  midi_event(delta_time, status, notes_off_c, notes_off_v, buf);
+  // uint8_t status = make_status(CHANNEL_MODE, channel);
+  midi_event(delta_time, CHANNEL_MODE, channel, notes_off_c, notes_off_v, buf);
 }
 
 void prog_change(uint32_t delta_time, Channel channel, Instrument instr,
@@ -133,9 +132,8 @@ void MidiCreator::goto_track(int track_num) {
 void MidiCreator::play_note(Channel channel, Note note, Octave octave,
                             Volume volume) {
   Track &track = tracks.at(curr_track);
-  note_on(track.delta, channel.value(), note, octave, volume.value(),
-          track.buf);
-  note_off(BEAT_DELTA, curr_track, note, octave, volume.value(), track.buf);
+  note_on(track.delta, channel, note, octave, volume, track.buf);
+  note_off(BEAT_DELTA, channel, note, octave, volume, track.buf);
   track.delta = 0;
 }
 
@@ -155,7 +153,7 @@ void MidiCreator::change_instrument(Channel channel, Instrument instr) {
   // as we want the next event to play immediately
   track.delta = 0;
 }
-void MidiCreator::set_bpm(uint32_t bpm) {
+void MidiCreator::set_bpm(Bpm bpm) {
   Track &track = tracks.at(curr_track);
   set_tempo(track.delta, bpm, track.buf);
   // we already advanced the delta cursor, so we zero it
@@ -217,8 +215,14 @@ std::vector<uint8_t> MidiCreator::generate_file() {
   }
   return buf;
 }
+} // namespace synthlib
 
 // NOLINTBEGIN
+#ifdef CFG_TEST
+
+#include "doctest.h"
+
+using namespace synthlib;
 
 TEST_CASE("variable length quantity") {
   std::vector<uint8_t> buf;
@@ -436,7 +440,7 @@ TEST_CASE("writing 32bit in big-endian") {
 TEST_CASE("note_on MIDI event") {
   std::vector<uint8_t> buf;
 
-  note_on(125, 5, Note::G, Octave(6), 50, buf);
+  note_on(125, Channel(5), Note::G, Octave(6), Volume(50), buf);
   CHECK(buf.size() == 4);
   CHECK(buf.at(0) == 125);
   CHECK(buf.at(1) == 0x95);
@@ -446,14 +450,12 @@ TEST_CASE("note_on MIDI event") {
 TEST_CASE("note_off MIDI event") {
   std::vector<uint8_t> buf;
 
-  note_off(100, 4, Note::As, Octave(4), 110, buf);
+  note_off(100, Channel(4), Note::As, Octave(4), Volume(110), buf);
   CHECK(buf.size() == 4);
   CHECK(buf.at(0) == 100);
   CHECK(buf.at(1) == 0x84);
   CHECK(buf.at(2) == note2midi(Note::As, Octave(4)));
   CHECK(buf.at(3) == 110);
 }
-
+#endif
 // NOLINTEND
-
-} // namespace synthlib

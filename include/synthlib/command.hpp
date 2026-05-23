@@ -1,7 +1,7 @@
 #pragma once
 
 #include "synthlib/instrument.hpp"
-#include "synthlib/note.hpp"
+#include "synthlib/primitives.hpp"
 #include <cstdint>
 #include <variant>
 

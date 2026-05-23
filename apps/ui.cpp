@@ -1,14 +1,14 @@
 #include "ui.hpp"
+#include <FL/Fl_Box.H>
 #include <FL/Fl_Flex.H>
+#include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Display.H>
-#include <FL/Fl_Native_File_Chooser.H>
-#include <FL/Fl_Box.H>
-#include <iostream>
+#include <cmath>
 #include <fstream>
+#include <iostream>
 #include <stdlib.h>
 #include <string_view>
-
 
 void SynthApp::on_save_text(Fl_Widget *widget) {
   Fl_Native_File_Chooser file_chooser;
@@ -19,12 +19,14 @@ void SynthApp::on_save_text(Fl_Widget *widget) {
   }
 }
 void SynthApp::on_load_text(Fl_Widget *widget) {
-  std::cout << "LOAD TEXT\n";
+  Fl_Native_File_Chooser file_chooser;
+  file_chooser.title("Load File");
+  file_chooser.type(Fl_Native_File_Chooser::BROWSE_FILE);
+  if (file_chooser.show() == 0) {
+    text_buffer->loadfile(file_chooser.filename());
+  }
 }
-void SynthApp::on_save_midi(Fl_Widget *widget) {
-  std::cout << "SAVE MIDI\n";
-}
-
+void SynthApp::on_save_midi(Fl_Widget *widget) {}
 
 void SynthApp::build(Fl_Window &window) {
 
@@ -32,7 +34,7 @@ void SynthApp::build(Fl_Window &window) {
 
   // Putting the menu bar in the flex wasn't working for
   // some reason, so we're putting outside and calculating
-  // the sizes manually. 
+  // the sizes manually.
   build_menu_bar(window);
 
   // the dimensions of the frame which will hold all
@@ -46,7 +48,6 @@ void SynthApp::build(Fl_Window &window) {
 
   build_text_editor();
   controls->build();
-  
 
   frame->fixed(controls->root(), CONTROLS_WIDTH);
   frame->resizable(text_editor);
@@ -54,16 +55,13 @@ void SynthApp::build(Fl_Window &window) {
 
   window.resizable(frame);
   window.end();
-
 }
-
 
 void SynthApp::build_menu_bar(Fl_Window &window) {
   menu_bar = new Fl_Menu_Bar(0, 0, window.w(), MENU_BAR_HEIGHT);
   menu_bar->add("File/Load Text", 0, SynthApp::on_load_text_cb, this);
   menu_bar->add("File/Save Text", 0, SynthApp::on_save_text_cb, this);
   menu_bar->add("File/Save MIDI", 0, SynthApp::on_save_midi_cb, this);
-  
 }
 
 void SynthApp::build_text_editor() {
@@ -75,10 +73,6 @@ void SynthApp::build_text_editor() {
   text_editor->cursor_style(Fl_Text_Display::SIMPLE_CURSOR);
 
   // set line numbering
-  text_editor->linenumber_width(EDITOR_LINE_NUMBER_SIZE);
+  text_editor->linenumber_width(EDITOR_LINE_NUMBER_SIZE * 2);
   text_editor->linenumber_format("%d");
 }
-
-
-
-
