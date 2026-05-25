@@ -1,9 +1,11 @@
 #include "ui.hpp"
+#include "synthlib/compiler.hpp"
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Flex.H>
 #include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Display.H>
+#include <FL/fl_callback_macros.H>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -26,7 +28,21 @@ void SynthApp::on_load_text(Fl_Widget *widget) {
     text_buffer->loadfile(file_chooser.filename());
   }
 }
-void SynthApp::on_save_midi(Fl_Widget *widget) {}
+std::vector<uint8_t> SynthApp::compile_midi() {
+  return synthlib::compile(controls->voice_params(), text_buffer->text());
+}
+void SynthApp::on_save_midi(Fl_Widget *widget) {
+  auto midifile = compile_midi();
+  Fl_Native_File_Chooser file_chooser;
+  file_chooser.title("Save File As...");
+  file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
+  file_chooser.filter("MIDI Files (*.mid)");
+  if (file_chooser.show() == 0) {
+    std::ofstream outfile(file_chooser.filename(), std::ios::binary);
+    outfile.write((char *)midifile.data(), midifile.size());
+    outfile.close();
+  }
+}
 
 void SynthApp::build(Fl_Window &window) {
 
@@ -48,9 +64,12 @@ void SynthApp::build(Fl_Window &window) {
 
   build_text_editor();
   controls->build();
+  build_playback();
 
   frame->fixed(controls->root(), CONTROLS_WIDTH);
+  frame->fixed(playstop_button, 50);
   frame->resizable(text_editor);
+
   frame->end();
 
   window.resizable(frame);
@@ -64,6 +83,11 @@ void SynthApp::build_menu_bar(Fl_Window &window) {
   menu_bar->add("File/Save MIDI", 0, SynthApp::on_save_midi_cb, this);
 }
 
+void text_changed_cb(int pos, int n_ins, int n_del, int n_restyled,
+                     const char *deleted_text, void *changed_var) {
+  *static_cast<bool *>(changed_var) = true;
+}
+
 void SynthApp::build_text_editor() {
   text_buffer = new Fl_Text_Buffer();
   text_editor = new Fl_Text_Editor(0, 0, 0, 0);
@@ -75,4 +99,18 @@ void SynthApp::build_text_editor() {
   // set line numbering
   text_editor->linenumber_width(EDITOR_LINE_NUMBER_SIZE * 2);
   text_editor->linenumber_format("%d");
+
+  // text_buffer->add_modify_callback(text_changed_cb, &text_changed);
+}
+
+void SynthApp::playpause_midi() {
+  player.load_midi(compile_midi());
+  player.seek(0);
+  player.play();
+}
+void SynthApp::build_playback() {
+  player.load_soundfont("assets/general.sf2");
+
+  playstop_button = new Fl_Button(0, 0, 0, 0, "Play/Stop");
+  FL_METHOD_CALLBACK_0(playstop_button, SynthApp, this, playpause_midi);
 }

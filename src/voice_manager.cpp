@@ -52,13 +52,13 @@ Instrument VoiceManager::get_instrument(VoiceId voice) const {
 }
 
 void VoiceManager::override_volume(VoiceId voice, Volume volume) {
-  volume_overrides.emplace(voice, volume);
+  volume_overrides[voice] = volume;
 }
 void VoiceManager::override_octave(VoiceId voice, Octave octave) {
-  octave_overrides.emplace(voice, octave);
+  octave_overrides[voice] = octave;
 }
 void VoiceManager::override_instrument(VoiceId voice, Instrument instr) {
-  instrument_overrides.emplace(voice, instr);
+  instrument_overrides[voice] = instr;
 }
 
 void VoiceManager::reset_volume(VoiceId voice) {

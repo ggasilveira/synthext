@@ -3,27 +3,41 @@
 #include "synthlib/primitives.hpp"
 #include <FL/Fl_Button.H>
 #include <FL/fl_callback_macros.H>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <iostream>
 
 void instrument_fullname(Instrument instr, char *buffer, int buflen) {
   snprintf(buffer, buflen, "%s/%s", instr.group_name(), instr.name());
 }
 
+// NOLINTBEGIN
+/// Convert a MIDI value to Fl_Menu_Item userdata
+void *midi2userdata(Instrument instr) {
+  int midi = instr.to_int();
+  // we add 1 to midi to differentiate from the null pointer
+  size_t userdata = midi + 1;
+  return (void *)userdata;
+}
+/// COnvert Fl_Menu_Item userdata to midi value
+int userdata2midi(void *userdata) {
+  size_t userdat = (size_t)userdata;
+  return userdat - 1;
+}
+// NOLINTEND
+
 void add_instruments(Fl_Choice &instrs) {
   char buffer[100];
-  for (int midi = Instrument::MIDI_MIN; midi <= Instrument::MIDI_MAX; ++midi) {
+  for (size_t midi = Instrument::MIDI_MIN; midi <= Instrument::MIDI_MAX;
+       ++midi) {
     Instrument instr(midi);
     instrument_fullname(instr, buffer, 100);
-    instrs.add(buffer);
+    instrs.add(buffer, 0, nullptr, midi2userdata(instr));
   }
 }
 void add_voices(Fl_Choice &voices) {
   char buffer[100];
   for (int v_id = VoiceId::MIN; v_id <= VoiceId::MAX; ++v_id) {
     snprintf(buffer, 100, "Voice %d", v_id);
-
     voices.add(buffer);
   }
 }
@@ -31,19 +45,35 @@ void add_voices(Fl_Choice &voices) {
 const synthlib::VoiceManager &Controls::voice_params() { return params; }
 
 void Controls::select_voice() {
-  char buffer[100];
   int vid = curr_voice->value();
   volume_slider->value(params.get_volume(vid).value());
   octave_counter->value(params.get_octave(vid).value());
-  // instruments->value(params.get_instrument(vid).to_int());
-  instrument_fullname(params.get_instrument(vid), buffer, 100);
-  instruments->value(instruments->find_index(buffer));
+  Instrument instr = params.get_instrument(vid);
+  const auto *item =
+      instruments->find_item_with_user_data(midi2userdata(instr));
+  instruments->value(item);
 }
 void Controls::reset_voice() {
   int vid = curr_voice->value();
   params.reset_voice(vid);
   select_voice();
 }
+void Controls::set_instrument() {
+  int vid = curr_voice->value();
+  int midi = userdata2midi(instruments->mvalue()->user_data());
+  params.override_instrument(vid, Instrument(midi));
+}
+void Controls::set_octave() {
+  int vid = curr_voice->value();
+
+  Octave oct((int)octave_counter->value());
+  params.override_octave(vid, oct);
+}
+void Controls::set_volume() {
+  int vid = curr_voice->value();
+  params.override_volume(vid, Volume((int)volume_slider->value()));
+}
+void Controls::set_bpm() { params.set_bpm(Bpm((int)bpm_slider->value())); }
 
 void Controls::build() {
   flex = new Fl_Flex(0, 0, 0, 0, Fl_Flex::COLUMN);
@@ -53,6 +83,8 @@ void Controls::build() {
   bpm_slider->type(FL_HOR_NICE_SLIDER);
   bpm_slider->bounds(Bpm::MIN, Bpm::MAX);
   bpm_slider->precision(0);
+  bpm_slider->value(Bpm::DEFAULT);
+  FL_METHOD_CALLBACK_0(bpm_slider, Controls, this, set_bpm);
   flex->fixed(bpm_slider, 30);
 
   curr_voice = new Fl_Choice(0, 0, 0, 0, "Voice");
@@ -65,16 +97,19 @@ void Controls::build() {
   volume_slider->type(FL_HOR_NICE_SLIDER);
   volume_slider->bounds(Volume::MIN, Volume::MAX);
   volume_slider->precision(0);
+  FL_METHOD_CALLBACK_0(volume_slider, Controls, this, set_volume);
   flex->fixed(volume_slider, 30);
 
   octave_counter = new Fl_Counter(0, 0, 0, 0, "Octave");
   octave_counter->bounds(Octave::MIN, Octave::MAX);
   octave_counter->precision(0);
+  FL_METHOD_CALLBACK_0(octave_counter, Controls, this, set_octave);
   flex->fixed(octave_counter, 30);
 
   instruments = new Fl_Choice(0, 0, 0, 0, "Instrument");
   add_instruments(*instruments);
   instruments->align(FL_ALIGN_BOTTOM);
+  FL_METHOD_CALLBACK_0(instruments, Controls, this, set_instrument);
   flex->fixed(instruments, 30);
 
   auto *reset_voice_btn = new Fl_Button(0, 0, 0, 0, "Reset Voice");

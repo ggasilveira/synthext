@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <iostream>
 #include <stdexcept>
 
 namespace synthlib {
@@ -47,7 +48,7 @@ public:
     if (newval > MAX) {
       return Bounded<T, min, max, initial>(MAX);
     }
-    return Bounded<T, min, max, initial>(value);
+    return Bounded<T, min, max, initial>(newval);
   }
 
   /// subtract a value and clamp result inside bounds
@@ -59,7 +60,7 @@ public:
     if (newval > MAX) {
       return Bounded(MAX);
     }
-    return Bounded(value);
+    return Bounded(newval);
   }
 
   /// Returns the inner value

@@ -26,6 +26,9 @@ public:
   /// Get the current tick in the file
   int current_tick();
 
+  /// Returns true if the player is playing a song
+  bool is_playing();
+
 private:
   std::vector<uint8_t> midi_file;
   fluid_settings_t *settings = nullptr;

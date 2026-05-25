@@ -1,5 +1,6 @@
 #include "synthlib/midi_creator.hpp"
 #include <array>
+#include <cstdio>
 #include <stdexcept>
 
 namespace synthlib {
@@ -57,6 +58,8 @@ void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
   buf.push_back(make_status(event, channel));
   buf.push_back(data1);
   buf.push_back(data2);
+  printf("MIDI: delta=%d, event=%d, channel=%d, data1=%d, data2=%d\n",
+         delta_time, event, channel.value(), data1, data2);
 }
 
 void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
@@ -69,6 +72,8 @@ void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
   // CHECK((data1 & 0x80) == 0);
 
   buf.push_back(data1);
+  printf("MIDI: delta=%d, event=%d, channel=%d, data1=%d\n", delta_time, event,
+         channel.value(), data1);
 }
 
 void end_of_track(uint32_t delta_time, std::vector<uint8_t> &buf) {
@@ -165,7 +170,7 @@ void MidiCreator::write_header(std::vector<uint8_t> &buf) {
   const uint8_t header_len = 6;
   const uint8_t header_format_multitrack = 1;
   // chunk-type
-  for (char c : "MThd") {
+  for (char c : {'M', 'T', 'h', 'd'}) {
     buf.push_back(c);
   }
   // length: 32bit
@@ -196,7 +201,7 @@ void MidiCreator::write_track(std::vector<uint8_t> &buf, int track) {
   end_of_track(trk.delta, trk.buf);
   auto trk_len = trk.buf.size();
 
-  for (char c : "MTrk") {
+  for (char c : {'M', 'T', 'r', 'k'}) {
     buf.push_back(c);
   }
   write_32bit(trk_len, buf);

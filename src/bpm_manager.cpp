@@ -2,6 +2,7 @@
 #include "synthlib/midi_creator.hpp"
 #include "synthlib/primitives.hpp"
 #include <algorithm>
+#include <stdio.h>
 
 namespace synthlib {
 
@@ -20,11 +21,15 @@ void BpmManager::write_bpm_track(MidiCreator &creator, int track_n) {
   uint32_t beats = 0;
   creator.set_bpm(bpm);
 
+  int i = 0;
   for (auto bpm_change : changes) {
+
     bpm = bpm.add_saturated(bpm_change.bpm_delta);
     creator.play_pause(bpm_change.beats - beats);
     creator.set_bpm(bpm);
     beats = bpm_change.beats;
+    printf("writing bpm %d at %d: %d\n", i, bpm_change.beats, bpm);
+    ++i;
   }
 }
 

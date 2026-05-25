@@ -32,8 +32,8 @@ public:
   std::vector<uint8_t> generate_file();
 
 private:
-  static constexpr int BEAT_DELTA = 1;
-  static constexpr uint8_t TICKS_PER_QUARTER = 1;
+  static constexpr int BEAT_DELTA = 2;
+  static constexpr uint8_t TICKS_PER_QUARTER = 2;
 
   std::vector<Track> tracks;
   int curr_track = -1;

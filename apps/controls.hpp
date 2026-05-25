@@ -27,7 +27,11 @@ public:
 
 private:
   void select_voice();
+  void set_instrument();
+  void set_octave();
+  void set_volume();
   void reset_voice();
+  void set_bpm();
   Fl_Flex *flex = nullptr;
   Fl_Value_Slider *bpm_slider = nullptr;
   Fl_Value_Slider *volume_slider = nullptr;

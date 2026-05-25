@@ -26,6 +26,9 @@ void Player::load_soundfont(const std::string &file) {
 }
 void Player::load_midi(const std::vector<uint8_t> &midifile) {
   midi_file = midifile;
+  fluid_player_stop(player);
+  delete_fluid_player(player);
+  player = new_fluid_player(synth);
   fluid_player_add_mem(player, midi_file.data(), midi_file.size());
 }
 
@@ -44,6 +47,11 @@ void Player::seek(int ticks) {
     throw std::runtime_error("failed seeking midi file");
   }
 }
+
+bool Player::is_playing() {
+  return fluid_player_get_status(player) == FLUID_PLAYER_PLAYING;
+}
+
 int Player::total_ticks() { return fluid_player_get_total_ticks(player); }
 int Player::current_tick() { return fluid_player_get_current_tick(player); }
 

@@ -1,9 +1,10 @@
 #pragma once
 
 #include "controls.hpp"
-#include "synthlib/voice_manager.hpp"
+#include "synthlib/player.hpp"
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
+#include <FL/Fl_Button.H>
 #include <FL/Fl_Counter.H>
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Flex.H>
@@ -40,6 +41,11 @@ private:
 
   Controls *controls = nullptr;
 
+  synthlib::Player player;
+  // bool text_changed = true;
+  bool is_playing = false;
+  Fl_Button *playstop_button = nullptr;
+
   CALLBACK(SynthApp, on_save_text);
   CALLBACK(SynthApp, on_load_text);
   CALLBACK(SynthApp, on_save_midi);
@@ -47,4 +53,7 @@ private:
   void build_menu_bar(Fl_Window &window);
   void build_text_editor();
   void build_controls();
+  void build_playback();
+  void playpause_midi();
+  std::vector<uint8_t> compile_midi();
 };

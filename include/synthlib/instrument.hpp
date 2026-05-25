@@ -173,6 +173,10 @@ public:
   static constexpr int MIDI_MAX = 127;
 
   /// Creates a new General MIDI instrument
+  /// holding the GM #0 instrument
+  Instrument() : instr(Midi::AcousticGrandPiano) {}
+
+  /// Creates a new General MIDI instrument
   /// @param instrument The MIDI instrument
   /// @return an Instrument object
   Instrument(Midi instrument) : instr(instrument) {}

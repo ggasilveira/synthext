@@ -152,6 +152,10 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 
   creator.goto_track(track_num);
 
+  creator.play_pause(1);
+  creator.change_instrument(channel, instr);
+  std::cout << "changed instr to " << instr.name() << "\n";
+
   for (auto command : voice) {
     switch (command.kind()) {
     case CommandKind::Delay:
@@ -171,7 +175,7 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
       elapsed += 1;
       break;
     case CommandKind::PlayNote:
-      creator.play_note(channel, last.note(), octave, volume);
+      creator.play_note(channel, command.note(), octave, volume);
       elapsed += 1;
       break;
     case CommandKind::ChangeInstrument:
@@ -197,10 +201,10 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
       }
       break;
     case CommandKind::IncreaseBpm:
-      bpm_man.change_bpm(elapsed, (int32_t)command.amount());
+      bpm_man.change_bpm(elapsed, command.amount());
       break;
     case CommandKind::DecreaseBpm:
-      bpm_man.change_bpm(elapsed, -(int32_t)command.amount());
+      bpm_man.change_bpm(elapsed, -command.amount());
       break;
     case CommandKind::DoubleVolume:
       try {
