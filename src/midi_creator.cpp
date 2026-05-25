@@ -1,6 +1,7 @@
 #include "synthlib/midi_creator.hpp"
 #include <array>
 #include <cstdio>
+#include <spdlog/spdlog.h>
 #include <stdexcept>
 
 namespace synthlib {
@@ -58,8 +59,9 @@ void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
   buf.push_back(make_status(event, channel));
   buf.push_back(data1);
   buf.push_back(data2);
-  printf("MIDI: delta=%d, event=%d, channel=%d, data1=%d, data2=%d\n",
-         delta_time, event, channel.value(), data1, data2);
+  spdlog::debug("MIDI (channel={}, delta={}, event={}"
+                "data1={}, data2={})",
+                channel.value(), delta_time, event, data1, data2);
 }
 
 void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
@@ -72,8 +74,8 @@ void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
   // CHECK((data1 & 0x80) == 0);
 
   buf.push_back(data1);
-  printf("MIDI: delta=%d, event=%d, channel=%d, data1=%d\n", delta_time, event,
-         channel.value(), data1);
+  spdlog::debug("MIDI (channel={}, delta={}, event={}, data1={})",
+                channel.value(), delta_time, event, data1);
 }
 
 void end_of_track(uint32_t delta_time, std::vector<uint8_t> &buf) {
@@ -82,6 +84,7 @@ void end_of_track(uint32_t delta_time, std::vector<uint8_t> &buf) {
   for (auto b : eot) {
     buf.push_back(b);
   }
+  // spdlog::debug("End Of Track (delta_time={})", delta_time);
 }
 uint32_t bpm2tempo(Bpm bpm) {
   const uint32_t us_per_min = 60000000;
@@ -102,6 +105,7 @@ void set_tempo(uint32_t delta_time, Bpm bpm, std::vector<uint8_t> &buf) {
   buf.push_back(b0);
   buf.push_back(b1);
   buf.push_back(b2);
+  spdlog::debug("Tempo Change (delta={}, bpm={})", delta_time, bpm.value());
 }
 
 void note_on(uint32_t delta_time, Channel channel, Note note, Octave octave,
@@ -133,22 +137,25 @@ void MidiCreator::goto_track(int track_num) {
     tracks.resize(track_num + 1);
   }
   curr_track = track_num;
+  spdlog::debug("Track Change (track={})", track_num);
 }
 void MidiCreator::play_note(Channel channel, Note note, Octave octave,
                             Volume volume) {
   Track &track = tracks.at(curr_track);
   note_on(track.delta, channel, note, octave, volume, track.buf);
-  note_off(BEAT_DELTA, channel, note, octave, volume, track.buf);
+  note_off(beat_ticks, channel, note, octave, volume, track.buf);
   track.delta = 0;
 }
 
-void MidiCreator::play_pause() {
+void MidiCreator::pause_beats(uint32_t n) {
   Track &track = tracks.at(curr_track);
-  track.delta += BEAT_DELTA;
+  track.delta += beat_ticks * n;
+  spdlog::debug("paused {} beats", n);
 }
-void MidiCreator::play_pause(uint32_t n) {
+void MidiCreator::pause_ticks(uint32_t n) {
   Track &track = tracks.at(curr_track);
-  track.delta += BEAT_DELTA * n;
+  track.delta += n;
+  spdlog::debug("paused {} ticks", n);
 }
 
 void MidiCreator::change_instrument(Channel channel, Instrument instr) {
@@ -189,7 +196,7 @@ void MidiCreator::write_header(std::vector<uint8_t> &buf) {
 
   // division: 16bit
   buf.push_back(0);
-  buf.push_back(TICKS_PER_QUARTER);
+  buf.push_back(beat_ticks);
 }
 void MidiCreator::write_track(std::vector<uint8_t> &buf, int track) {
   Track &trk = tracks.at(track);
@@ -220,6 +227,7 @@ std::vector<uint8_t> MidiCreator::generate_file() {
   }
   return buf;
 }
+
 } // namespace synthlib
 
 // NOLINTBEGIN

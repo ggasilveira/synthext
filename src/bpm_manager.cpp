@@ -25,7 +25,7 @@ void BpmManager::write_bpm_track(MidiCreator &creator, int track_n) {
   for (auto bpm_change : changes) {
 
     bpm = bpm.add_saturated(bpm_change.bpm_delta);
-    creator.play_pause(bpm_change.beats - beats);
+    creator.pause_beats(bpm_change.beats - beats);
     creator.set_bpm(bpm);
     beats = bpm_change.beats;
     printf("writing bpm %d at %d: %d\n", i, bpm_change.beats, bpm);

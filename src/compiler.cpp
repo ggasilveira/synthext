@@ -152,25 +152,25 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 
   creator.goto_track(track_num);
 
-  creator.play_pause(1);
+  // creator.pause_ticks(1);
   creator.change_instrument(channel, instr);
   std::cout << "changed instr to " << instr.name() << "\n";
 
   for (auto command : voice) {
     switch (command.kind()) {
     case CommandKind::Delay:
-      creator.play_pause(command.amount());
+      creator.pause_beats(command.amount());
       elapsed += command.amount();
       break;
     case CommandKind::Pause:
-      creator.play_pause();
+      creator.pause_beats();
       elapsed += 1;
       break;
     case CommandKind::PauseOrRepeat:
       if (last.kind() == CommandKind::PlayNote) {
         creator.play_note(channel, last.note(), octave, volume);
       } else {
-        creator.play_pause();
+        creator.pause_beats();
       }
       elapsed += 1;
       break;
@@ -220,7 +220,7 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 
 std::vector<uint8_t> create_midi(const VoiceManager &params,
                                  std::vector<voiceline> voices) {
-  MidiCreator creator;
+  MidiCreator creator(1);
   BpmManager bpm_man(params.get_bpm());
   if (voices.size() > (VoiceId::MAX + 1)) {
     voices.resize(VoiceId::MAX + 1);

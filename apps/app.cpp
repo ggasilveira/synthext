@@ -8,10 +8,12 @@
 #include <FL/Fl_Menu_Bar.H>
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Editor.H>
+#include <spdlog/cfg/env.h>
 
 #include "ui.hpp"
 
 auto main() -> int {
+  spdlog::cfg::load_env_levels();
   auto *app_window = new Fl_Double_Window(800, 600, "Synthext");
 
   auto *app = new SynthApp();
