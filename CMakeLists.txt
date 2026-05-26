@@ -10,7 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #include(CTest)
 include(FetchContent)
 
-add_subdirectory(src)
+add_subdirectory(synthlib)
 add_subdirectory(apps)
 
 # if(BUILD_TESTING)
