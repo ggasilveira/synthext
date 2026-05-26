@@ -21,12 +21,15 @@ struct BpmChange {
 class BpmManager {
 
 public:
-  /// Creates a BpmManager with the initial bpm
+  /// Creates a BpmManager with the starting bpm.
+  /// @param bpm initial bpm
   BpmManager(Bpm bpm) : initial_bpm(bpm) {}
   /// Issues a bpm change in absolute time.
+  /// @param beats the song beat in which the change occurs
+  /// @param delta the value to add to the burrent bpm
   void change_bpm(uint32_t beats, int delta);
-  /// This function creates a dedicated track to
-  /// issue bpm change events.
+  /// Writes all bpm changes to the track, synchronized
+  /// and ordered.
   void write_bpm_track(MidiCreator &creator, int track_n);
 
 private:

@@ -4,6 +4,7 @@
 
 namespace synthlib {
 
+/// A General MIDI instrument value
 enum class Midi : uint8_t {
   // Piano:
   AcousticGrandPiano = 0,
@@ -165,11 +166,12 @@ enum class Midi : uint8_t {
   Gunshot = 127,
 };
 
+/// A General MIDI instrument
 class Instrument {
 public:
-  /// Minimum MIDI instrument
+  /// Minimum GM value
   static constexpr int MIDI_MIN = 0;
-  /// Maximum MIDI instrument
+  /// Maximum GM value
   static constexpr int MIDI_MAX = 127;
 
   /// Creates a new General MIDI instrument
@@ -183,9 +185,9 @@ public:
 
   /// Creates a new General MIDI instrument from
   /// an integer if it's in the range [MIDI_MIN; MIDI_MAX].
-  /// @param midi Integer representing a MIDI value
+  /// @param midi integer representing a MIDI value
   /// @return an Instrument object
-  /// @throws invalid_argument if integer out of range
+  /// @throws std::invalid_argument if integer out of range
   Instrument(uint8_t midi) {
     if (midi > MIDI_MAX) {
       throw std::invalid_argument("out of range MIDI value");

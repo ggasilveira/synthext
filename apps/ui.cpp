@@ -29,7 +29,8 @@ void SynthApp::on_load_text(Fl_Widget *widget) {
   }
 }
 std::vector<uint8_t> SynthApp::compile_midi() {
-  return synthlib::compile(controls->voice_params(), text_buffer->text());
+
+  return compiler.compile(controls->voice_params(), text_buffer->text());
 }
 void SynthApp::on_save_midi(Fl_Widget *widget) {
   auto midifile = compile_midi();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "controls.hpp"
+#include "synthlib/compiler.hpp"
 #include "synthlib/player.hpp"
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
@@ -42,6 +43,7 @@ private:
   Controls *controls = nullptr;
 
   synthlib::Player player;
+  synthlib::Compiler compiler;
   // bool text_changed = true;
   bool is_playing = false;
   Fl_Button *playstop_button = nullptr;

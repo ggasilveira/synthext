@@ -15,18 +15,17 @@ namespace synthlib {
 
 using cursor = string_view::size_type;
 
-using mapping = std::array<Command, 256>;
 using voiceline = std::vector<Command>;
 
 static const uint8_t Mb = '+';
-static const char *Mb_s = "+";
+static const char *const Mb_s = "+";
 
 // Mapping for synthext language
 // We replace all occurrences of "Mb", which is the only
 // multi-letter token with "+", which is an unused character
 // so we can use an array to map characters to commands.
-mapping build_map() {
-  mapping map{};
+Compiler::Mapping build_map() {
+  Compiler::Mapping map{};
 
   // note commands
   map['A'] = Command(Note::A);
@@ -86,7 +85,8 @@ static int parse_delay(std::string_view delay) {
 }
 
 /// Compiles a single line into a voice
-static voiceline compile_line(const std::string &line, mapping const &map) {
+
+Compiler::Voiceline Compiler::compile_line(const std::string &line) const {
 
   // replace all occurrences of "Mb" with "+"
   std::regex Mb_pattern("Mb");
@@ -115,6 +115,7 @@ static voiceline compile_line(const std::string &line, mapping const &map) {
   return comms;
 }
 
+/// separates a string into lines without the newline
 std::vector<std::string> get_lines(std::string &source) {
   std::vector<std::string> lines;
   int line_start = 0;
@@ -152,9 +153,7 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 
   creator.goto_track(track_num);
 
-  // creator.pause_ticks(1);
   creator.change_instrument(channel, instr);
-  std::cout << "changed instr to " << instr.name() << "\n";
 
   for (auto command : voice) {
     switch (command.kind()) {
@@ -183,7 +182,11 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
       creator.change_instrument(channel, instr);
       break;
     case CommandKind::IncreaseInstrument:
-      instr = Instrument(instr.to_int() + command.amount());
+      try {
+        instr = Instrument(instr.to_int() + command.amount());
+      } catch (...) {
+        instr = Instrument(params.get_instrument(voice_id));
+      }
       creator.change_instrument(channel, instr);
       break;
     case CommandKind::IncreaseOctave:
@@ -218,10 +221,14 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
   }
 }
 
+/// Transforms the list of voice lines into the midi file
 std::vector<uint8_t> create_midi(const VoiceManager &params,
                                  std::vector<voiceline> voices) {
+  // If we don't set ticks_per_beat = 8, bpm changes will result
+  // in a delay in the first note after the change
   MidiCreator creator(8);
   BpmManager bpm_man(params.get_bpm());
+  // If the file has too many lines, we just get the first 16 voices
   if (voices.size() > (VoiceId::MAX + 1)) {
     voices.resize(VoiceId::MAX + 1);
   }
@@ -230,25 +237,26 @@ std::vector<uint8_t> create_midi(const VoiceManager &params,
     create_midi_voice(creator, params, bpm_man, voices.at(i), VoiceId(i),
                       i + 1);
   }
+  // and write the bpm track in the reserved space
   bpm_man.write_bpm_track(creator, 0);
   return creator.generate_file();
 }
 
-std::vector<uint8_t> compile(const VoiceManager &params, std::string source) {
+Compiler::Compiler() { map = build_map(); }
 
+std::vector<uint8_t> Compiler::compile(const VoiceManager &voice_params,
+                                       std::string source) const {
   std::vector<std::string> lines = get_lines(source);
   std::vector<voiceline> voices;
   voices.reserve(lines.size());
-
-  mapping map = build_map();
 
   for (auto &line : lines) {
     if (line.empty()) {
       continue;
     }
-    voices.push_back(compile_line(line, map));
+    voices.push_back(compile_line(line));
   }
-  return create_midi(params, voices);
+  return create_midi(voice_params, voices);
 }
 } // namespace synthlib
 
@@ -291,8 +299,8 @@ TEST_CASE("voice parsing notes") {
       Command(Note::D), Command(Note::E),  Command(Note::F),
       Command(Note::G), Command(Note::Bb), Command(Note::Eb),
   };
-  mapping map = build_map();
-  auto voice = compile_line(s, map);
+  Compiler cl;
+  auto voice = cl.compile_line(s);
   CHECK(voice.size() == 9);
   for (int i = 0; i < 9; ++i) {
     CHECK(voice.at(i) == expected.at(i));

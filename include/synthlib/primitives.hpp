@@ -32,14 +32,16 @@ public:
   static constexpr T DEFAULT = initial;
 
   Bounded() : _value(DEFAULT) {}
-  /// Validates and creates the bounded object
+  /// Validates and creates the bounded object.
+  /// @param value the value to create the object with
   Bounded(T value) : _value(value) {
     if (value < MIN || value > MAX) {
       throw std::invalid_argument("value out of range");
     }
   }
 
-  /// add a value and clamp result inside bounds
+  /// Add a value and clamp result inside bounds.
+  /// @param value value to add
   Bounded<T, min, max, initial> add_saturated(T value) {
     T newval = _value + value;
     if (newval < MIN) {
@@ -51,7 +53,8 @@ public:
     return Bounded<T, min, max, initial>(newval);
   }
 
-  /// subtract a value and clamp result inside bounds
+  /// Subtract a value and clamp result inside bounds.
+  /// @param value value to subtract
   Bounded<T, min, max, initial> sub_saturated(T value) {
     T newval = _value - value;
     if (newval < MIN) {
@@ -63,7 +66,8 @@ public:
     return Bounded(newval);
   }
 
-  /// Returns the inner value
+  /// Returns the inner value.
+  /// @return the inner value
   [[nodiscard]]
   T value() const {
     return _value;
@@ -100,21 +104,15 @@ private:
 
 /// A range-validated bpm value
 using Bpm = Bounded<int, BPM_MIN, BPM_MAX, BPM_INITIAL>;
-// class Bpm : public Bounded<int, BPM_MIN, BPM_MAX, BPM_INITIAL> {};
 
 /// A range-validated voice identifier
 using VoiceId = Bounded<int, VOICE_MIN, VOICE_MAX, VOICE_INITIAL>;
-// class VoiceId : public Bounded<int, VOICE_MIN, VOICE_MAX, VOICE_INITIAL> {};
 
 /// A range-validated octave value
 using Octave = Bounded<int, OCTAVE_MIN, OCTAVE_MAX, OCTAVE_INITIAL>;
-// class Octave : public Bounded<int, OCTAVE_MIN, OCTAVE_MAX, OCTAVE_INITIAL>
-// {};
 
 /// A range-validated volume value
 using Volume = Bounded<int, VOLUME_MIN, VOLUME_MAX, VOLUME_INITIAL>;
-// class Volume : public Bounded<int, VOLUME_MIN, VOLUME_MAX, VOLUME_INITIAL>
-// {};
 
 /// A range-validated channel value
 using Channel = Bounded<int, CHANNEL_MIN, CHANNEL_MAX, CHANNEL_INITIAL>;
