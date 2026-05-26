@@ -1,4 +1,5 @@
 #include "synthlib/player.hpp"
+#include "synthlib/primitives.hpp"
 #include <stdexcept>
 
 namespace synthlib {
@@ -28,6 +29,11 @@ void Player::load_midi(const std::vector<uint8_t> &midifile) {
   midi_file = midifile;
   fluid_player_stop(player);
   delete_fluid_player(player);
+  // if we don't turn off all sounds, notes that were on
+  // when we stopped playing will continue playing
+  for (int i = 0; i <= Channel::MAX; ++i) {
+    fluid_synth_all_sounds_off(synth, i);
+  }
   player = new_fluid_player(synth);
   fluid_player_add_mem(player, midi_file.data(), midi_file.size());
 }

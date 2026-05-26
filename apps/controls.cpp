@@ -75,6 +75,17 @@ void Controls::set_volume() {
 }
 void Controls::set_bpm() { params.set_bpm(Bpm((int)bpm_slider->value())); }
 
+void Controls::call_play() {
+  if (play_cb) {
+    play_cb();
+  }
+}
+void Controls::call_stop() {
+  if (play_cb) {
+    stop_cb();
+  }
+}
+
 void Controls::build() {
   flex = new Fl_Flex(0, 0, 0, 0, Fl_Flex::COLUMN);
   // control_list = new Fl_Pack(0, 0, 0, 0);
@@ -115,6 +126,15 @@ void Controls::build() {
   auto *reset_voice_btn = new Fl_Button(0, 0, 0, 0, "Reset Voice");
   FL_METHOD_CALLBACK_0(reset_voice_btn, Controls, this, reset_voice);
   flex->fixed(reset_voice_btn, 30);
+
+  auto *playback_frame = new Fl_Flex(0, 0, 0, 0, Fl_Flex::ROW);
+  play_button = new Fl_Button(0, 0, 0, 0, "Play");
+  stop_button = new Fl_Button(0, 0, 0, 0, "Stop");
+  FL_METHOD_CALLBACK_0(play_button, Controls, this, call_play);
+  FL_METHOD_CALLBACK_0(stop_button, Controls, this, call_stop);
+
+  playback_frame->end();
+  flex->fixed(playback_frame, 50);
 
   space = new Fl_Box(0, 0, 0, 0);
 

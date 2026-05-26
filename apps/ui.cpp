@@ -5,11 +5,12 @@
 #include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Display.H>
+#include <FL/fl_ask.H>
 #include <FL/fl_callback_macros.H>
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <iostream>
-#include <stdlib.h>
 #include <string_view>
 
 void SynthApp::on_save_text(Fl_Widget *widget) {
@@ -32,16 +33,30 @@ std::vector<uint8_t> SynthApp::compile_midi() {
 
   return compiler.compile(controls->voice_params(), text_buffer->text());
 }
+
+void save_binary_file(std::vector<uint8_t> bytes, std::string filename) {
+  std::ofstream outfile(filename, std::ios::binary);
+  outfile.write((char *)bytes.data(), bytes.size());
+  outfile.close();
+}
+
+void show_compile_error(const CompilerError &err) {
+  fl_message_title("Error compiling file");
+  fl_message("%s", err.what());
+}
+
 void SynthApp::on_save_midi(Fl_Widget *widget) {
-  auto midifile = compile_midi();
-  Fl_Native_File_Chooser file_chooser;
-  file_chooser.title("Save File As...");
-  file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
-  file_chooser.filter("MIDI Files (*.mid)");
-  if (file_chooser.show() == 0) {
-    std::ofstream outfile(file_chooser.filename(), std::ios::binary);
-    outfile.write((char *)midifile.data(), midifile.size());
-    outfile.close();
+  try {
+    auto midifile = compile_midi();
+    Fl_Native_File_Chooser file_chooser;
+    file_chooser.title("Save File As...");
+    file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
+    file_chooser.filter("MIDI Files (*.mid)");
+    if (file_chooser.show() == 0) {
+      save_binary_file(midifile, file_chooser.filename());
+    }
+  } catch (CompilerError err) {
+    show_compile_error(err);
   }
 }
 
@@ -65,10 +80,11 @@ void SynthApp::build(Fl_Window &window) {
 
   build_text_editor();
   controls->build();
+  controls->on_play([&]() { play_midi(); });
+  controls->on_stop([&]() { stop_midi(); });
   build_playback();
 
   frame->fixed(controls->root(), CONTROLS_WIDTH);
-  frame->fixed(playstop_button, 50);
   frame->resizable(text_editor);
 
   frame->end();
@@ -104,14 +120,15 @@ void SynthApp::build_text_editor() {
   // text_buffer->add_modify_callback(text_changed_cb, &text_changed);
 }
 
-void SynthApp::playpause_midi() {
-  player.load_midi(compile_midi());
-  player.seek(0);
-  player.play();
-}
-void SynthApp::build_playback() {
-  player.load_soundfont("assets/general.sf2");
+void SynthApp::play_midi() {
+  try {
+    player.load_midi(compile_midi());
+    player.seek(0);
+    player.play();
 
-  playstop_button = new Fl_Button(0, 0, 0, 0, "Play/Stop");
-  FL_METHOD_CALLBACK_0(playstop_button, SynthApp, this, playpause_midi);
+  } catch (CompilerError err) {
+    show_compile_error(err);
+  }
 }
+void SynthApp::stop_midi() { player.stop(); }
+void SynthApp::build_playback() { player.load_soundfont("assets/general.sf2"); }

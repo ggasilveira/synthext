@@ -3,8 +3,10 @@
 #include "synthlib/command.hpp"
 #include "synthlib/midi_creator.hpp"
 #include <array>
+#include <fstream>
 #include <iostream>
 #include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <variant>
 #include <vector>
@@ -15,11 +17,23 @@ namespace synthlib {
 
 using cursor = string_view::size_type;
 
-using voiceline = std::vector<Command>;
-
 static const uint8_t Mb = '+';
 static const char *const Mb_s = "+";
 
+std::string CompilerError::gen_msg() const {
+  using Kind = CompilerError::Kind;
+  std::stringstream msg;
+  msg << "Error at line " << _line << ": ";
+  switch (_kind) {
+  case Kind::InvalidDelay:
+    msg << "invalid delay specifier";
+    break;
+  case Kind::UnclosedDelay:
+    msg << "unclosed delay clausule";
+    break;
+  }
+  return msg.str();
+}
 // Mapping for synthext language
 // We replace all occurrences of "Mb", which is the only
 // multi-letter token with "+", which is an unused character
@@ -78,7 +92,8 @@ static int parse_delay(std::string_view delay) {
       out *= 10;
       out += c - '0';
     } else {
-      throw std::invalid_argument("delay specifier is not a number");
+      throw CompilerError::Kind::InvalidDelay;
+      // throw std::invalid_argument("delay specifier is not a number");
     }
   }
   return out;
@@ -101,7 +116,7 @@ Compiler::Voiceline Compiler::compile_line(const std::string &line) const {
   if (linefix.at(0) == '[') {
     cursor = linefix.find(']');
     if (cursor == string_view::npos) {
-      throw std::invalid_argument("unclosed delay specifier");
+      throw CompilerError::Kind::UnclosedDelay;
     }
     int delay = parse_delay(linefix.substr(1, cursor - 1));
     comms.emplace_back(CommandKind::Delay, delay);
@@ -138,8 +153,8 @@ std::vector<std::string> get_lines(std::string &source) {
 int voice2track(int voice) { return voice + 1; }
 
 void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
-                       BpmManager &bpm_man, voiceline &voice, VoiceId voice_id,
-                       int track_num) {
+                       BpmManager &bpm_man, Compiler::Voiceline &voice,
+                       VoiceId voice_id, int track_num) {
   // we need to keep count of elapsed beats to send bpm changes
   // to the bpm manager
   uint32_t elapsed = 0;
@@ -223,7 +238,7 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 
 /// Transforms the list of voice lines into the midi file
 std::vector<uint8_t> create_midi(const VoiceManager &params,
-                                 std::vector<voiceline> voices) {
+                                 std::vector<Compiler::Voiceline> voices) {
   // If we don't set ticks_per_beat = 8, bpm changes will result
   // in a delay in the first note after the change
   MidiCreator creator(8);
@@ -247,16 +262,29 @@ Compiler::Compiler() { map = build_map(); }
 std::vector<uint8_t> Compiler::compile(const VoiceManager &voice_params,
                                        std::string source) const {
   std::vector<std::string> lines = get_lines(source);
-  std::vector<voiceline> voices;
+  std::vector<Compiler::Voiceline> voices;
   voices.reserve(lines.size());
 
+  int line_number = 0;
   for (auto &line : lines) {
+    ++line_number;
     if (line.empty()) {
       continue;
     }
-    voices.push_back(compile_line(line));
+    try {
+      voices.push_back(compile_line(line));
+    } catch (CompilerError::Kind err) {
+      throw CompilerError(err, line_number);
+    }
   }
   return create_midi(voice_params, voices);
+}
+void Compiler::compile_to_file(const VoiceManager &voice_params,
+                               std::string source, std::string filename) const {
+  auto bytes = compile(voice_params, std::move(source));
+  std::ofstream outfile(filename, std::ios::binary);
+  outfile.write((char *)bytes.data(), bytes.size());
+  outfile.close();
 }
 } // namespace synthlib
 

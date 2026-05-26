@@ -15,7 +15,6 @@
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Editor.H>
 #include <FL/Fl_Value_Slider.H>
-#include <filesystem>
 
 #define CALLBACK(classname, method)                                            \
   void method(Fl_Widget *widget);                                              \
@@ -44,9 +43,6 @@ private:
 
   synthlib::Player player;
   synthlib::Compiler compiler;
-  // bool text_changed = true;
-  bool is_playing = false;
-  Fl_Button *playstop_button = nullptr;
 
   CALLBACK(SynthApp, on_save_text);
   CALLBACK(SynthApp, on_load_text);
@@ -56,6 +52,8 @@ private:
   void build_text_editor();
   void build_controls();
   void build_playback();
+  void play_midi();
+  void stop_midi();
   void playpause_midi();
   std::vector<uint8_t> compile_midi();
 };
