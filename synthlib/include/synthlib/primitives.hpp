@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 
+/// this namespace contain all synthlib objects
 namespace synthlib {
 static constexpr int VOICE_MIN = 0;
 static constexpr int VOICE_MAX = 15;
