@@ -47,6 +47,7 @@ void Player::seek(int ticks) {
     throw std::runtime_error("failed seeking midi file");
   }
 }
+void Player::join() { fluid_player_join(player); }
 
 bool Player::is_playing() {
   return fluid_player_get_status(player) == FLUID_PLAYER_PLAYING;

@@ -29,6 +29,9 @@ public:
   /// Returns true if the player is playing a song
   bool is_playing();
 
+  /// Wait for player to finish playing
+  void join();
+
 private:
   std::vector<uint8_t> midi_file;
   fluid_settings_t *settings = nullptr;

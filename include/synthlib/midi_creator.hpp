@@ -36,7 +36,7 @@ public:
 private:
   std::vector<Track> tracks;
   int curr_track = -1;
-  int beat_ticks = 1;
+  int beat_ticks;
 
   void write_header(std::vector<uint8_t> &buf);
   void write_track(std::vector<uint8_t> &buf, int track);

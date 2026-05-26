@@ -220,7 +220,7 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 
 std::vector<uint8_t> create_midi(const VoiceManager &params,
                                  std::vector<voiceline> voices) {
-  MidiCreator creator(1);
+  MidiCreator creator(8);
   BpmManager bpm_man(params.get_bpm());
   if (voices.size() > (VoiceId::MAX + 1)) {
     voices.resize(VoiceId::MAX + 1);

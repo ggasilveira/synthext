@@ -50,12 +50,11 @@ uint8_t note2midi(Note note, Octave octave) {
 
 void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
                 uint8_t data1, uint8_t data2, std::vector<uint8_t> &buf) {
-  varlen(delta_time, buf);
 
   // data bytes must have the most significant bit deasserted
   // CHECK((data1 & 0x80) == 0);
   // CHECK((data2 & 0x80) == 0);
-
+  varlen(delta_time, buf);
   buf.push_back(make_status(event, channel));
   buf.push_back(data1);
   buf.push_back(data2);
@@ -105,7 +104,6 @@ void set_tempo(uint32_t delta_time, Bpm bpm, std::vector<uint8_t> &buf) {
   buf.push_back(b0);
   buf.push_back(b1);
   buf.push_back(b2);
-  spdlog::debug("Tempo Change (delta={}, bpm={})", delta_time, bpm.value());
 }
 
 void note_on(uint32_t delta_time, Channel channel, Note note, Octave octave,
@@ -150,7 +148,7 @@ void MidiCreator::play_note(Channel channel, Note note, Octave octave,
 void MidiCreator::pause_beats(uint32_t n) {
   Track &track = tracks.at(curr_track);
   track.delta += beat_ticks * n;
-  spdlog::debug("paused {} beats", n);
+  spdlog::debug("paused {} beats. delta is {}", n, track.delta);
 }
 void MidiCreator::pause_ticks(uint32_t n) {
   Track &track = tracks.at(curr_track);
@@ -168,8 +166,11 @@ void MidiCreator::change_instrument(Channel channel, Instrument instr) {
 void MidiCreator::set_bpm(Bpm bpm) {
   Track &track = tracks.at(curr_track);
   set_tempo(track.delta, bpm, track.buf);
+  spdlog::debug("set BPM (track={}, delta={}, bpm={})", curr_track, track.delta,
+                bpm.value());
   // we already advanced the delta cursor, so we zero it
   // as we want the next event to play immediately
+
   track.delta = 0;
 }
 
