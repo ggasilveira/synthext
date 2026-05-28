@@ -1,6 +1,5 @@
-#include "synthlib/midi_creator.hpp"
+#include "synthlib/midi_file_writer.hpp"
 #include <array>
-#include <cstdio>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
@@ -130,40 +129,35 @@ void prog_change(uint32_t delta_time, Channel channel, Instrument instr,
   midi_event(delta_time, PROG_CHANGE, channel, instr.to_int(), buf);
 }
 
-void MidiCreator::goto_track(int track_num) {
+void MidifileConsumer::change_track(unsigned int track_num) {
   if (track_num >= tracks.size()) {
     tracks.resize(track_num + 1);
   }
   curr_track = track_num;
   spdlog::debug("Track Change (track={})", track_num);
 }
-void MidiCreator::play_note(Channel channel, Note note, Octave octave,
-                            Volume volume) {
+void MidifileConsumer::play_note(Channel channel, Note note, Octave octave,
+                                 Volume volume) {
   Track &track = tracks.at(curr_track);
   note_on(track.delta, channel, note, octave, volume, track.buf);
   note_off(beat_ticks, channel, note, octave, volume, track.buf);
   track.delta = 0;
 }
 
-void MidiCreator::pause_beats(uint32_t n) {
+void MidifileConsumer::wait_beats(unsigned int n) {
   Track &track = tracks.at(curr_track);
   track.delta += beat_ticks * n;
   spdlog::debug("paused {} beats. delta is {}", n, track.delta);
 }
-void MidiCreator::pause_ticks(uint32_t n) {
-  Track &track = tracks.at(curr_track);
-  track.delta += n;
-  spdlog::debug("paused {} ticks", n);
-}
 
-void MidiCreator::change_instrument(Channel channel, Instrument instr) {
+void MidifileConsumer::change_instrument(Channel channel, Instrument instr) {
   Track &track = tracks.at(curr_track);
   prog_change(track.delta, channel, instr, track.buf);
   // we already advanced the delta cursor, so we zero it
   // as we want the next event to play immediately
   track.delta = 0;
 }
-void MidiCreator::set_bpm(Bpm bpm) {
+void MidifileConsumer::set_bpm(Bpm bpm) {
   Track &track = tracks.at(curr_track);
   set_tempo(track.delta, bpm, track.buf);
   spdlog::debug("set BPM (track={}, delta={}, bpm={})", curr_track, track.delta,
@@ -174,7 +168,7 @@ void MidiCreator::set_bpm(Bpm bpm) {
   track.delta = 0;
 }
 
-void MidiCreator::write_header(std::vector<uint8_t> &buf) {
+void MidifileConsumer::write_header(std::vector<uint8_t> &buf) {
   const uint8_t header_len = 6;
   const uint8_t header_format_multitrack = 1;
   // chunk-type
@@ -199,7 +193,7 @@ void MidiCreator::write_header(std::vector<uint8_t> &buf) {
   buf.push_back(0);
   buf.push_back(beat_ticks);
 }
-void MidiCreator::write_track(std::vector<uint8_t> &buf, int track) {
+void MidifileConsumer::write_track(std::vector<uint8_t> &buf, int track) {
   Track &trk = tracks.at(track);
 
   // we'll add the End Of Track event temporarily
@@ -220,7 +214,7 @@ void MidiCreator::write_track(std::vector<uint8_t> &buf, int track) {
   trk.buf.resize(trk_len_before);
 }
 
-std::vector<uint8_t> MidiCreator::generate_file() {
+std::vector<uint8_t> MidifileConsumer::generate_file() {
   std::vector<uint8_t> buf;
   write_header(buf);
   for (int i = 0; i < tracks.size(); ++i) {

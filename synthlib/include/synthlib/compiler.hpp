@@ -1,5 +1,6 @@
 #pragma once
 #include "synthlib/command.hpp"
+#include "synthlib/event_consumer.hpp"
 #include "synthlib/voice_manager.hpp"
 #include <array>
 #include <string>
@@ -51,8 +52,9 @@ public:
   /// @param voice_params the voices configuration
   /// @param source the Synthext language source text
   /// @return the MIDI file as a byte vector
-  std::vector<uint8_t> compile(const VoiceManager &voice_params,
-                               std::string source) const;
+  /// @throw CompilerError if there was any compilation error
+  void compile(const IEventConsumer &consumer, const VoiceManager &voice_params,
+               std::string source) const;
   /// Compiles Synthext source and writes to a MIDI file.
   /// @param voice_params the voices configuration
   /// @param source the Synthext language source text

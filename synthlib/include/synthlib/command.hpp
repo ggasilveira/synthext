@@ -1,10 +1,12 @@
 #pragma once
 
+#include "synthlib/bpm_manager.hpp"
+#include "synthlib/event_consumer.hpp"
 #include "synthlib/instrument.hpp"
 #include "synthlib/primitives.hpp"
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
-#include <variant>
 
 namespace synthlib {
 /// Types of synthext commands
@@ -20,6 +22,101 @@ enum class CommandKind : uint8_t {
   DoubleVolume,
   ChangeInstrument,
   IncreaseInstrument
+};
+
+/// Context passed for command execution
+class CommandContext {
+public:
+  CommandContext(IEventConsumer &consumer, BpmManager &bpm_manager,
+                 Channel channel, Instrument instr, Octave octave,
+                 Volume volume)
+      : _consumer(consumer), _bpm_manager(bpm_manager), _channel(channel),
+        instrument(instr), octave(octave), volume(volume),
+        last_note(std::nullopt) {}
+
+  IEventConsumer &consumer() { return _consumer; }
+  BpmManager &bpm_manager() { return _bpm_manager; }
+  Channel channel() { return _channel; }
+
+  Instrument instrument;
+  Octave octave;
+  Volume volume;
+  std::optional<Note> last_note;
+
+private:
+  /// The event consumer
+  IEventConsumer &_consumer;
+  BpmManager &_bpm_manager;
+  Channel _channel;
+};
+
+/// Interface for commands to execute different actions
+class ICommand {
+public:
+  virtual ~ICommand() = default;
+  /// Execute the command using the execution context.
+  /// @param ctx the command execution context
+  virtual void execute(CommandContext &ctx);
+  /// Returns the number of beats taken to execute the command.
+  /// @return number of beats taken by the command
+  virtual unsigned int beats_taken();
+
+  /// Returns true if this command was a note playing command
+  virtual bool plays_note() { return false; }
+};
+
+class Pause : ICommand {
+
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
+  unsigned int _beats;
+
+public:
+  Pause(int beats) : _beats(beats) {}
+};
+
+class PauseOrRepeat : ICommand {
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
+};
+
+class PlayNote : ICommand {
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
+  Note _note;
+
+public:
+  PlayNote(Note note) : _note(note) {}
+};
+class ChangeInstrument : ICommand {
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
+  Instrument _instr;
+
+public:
+  ChangeInstrument(Instrument instr) : _instr(instr) {}
+};
+class AddOctave : ICommand {
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
+  int _amount;
+
+public:
+  AddOctave(int amount) : _amount(amount) {}
+};
+
+class AddBpm : ICommand {
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
+  int _amount;
+
+public:
+  AddBpm(int amount) : _amount(amount) {}
+};
+
+class DoubleVolume : ICommand {
+  void execute(CommandContext &ctx) override;
+  unsigned int beats_taken() override;
 };
 
 /// A synthext command. Some commands have associated values.

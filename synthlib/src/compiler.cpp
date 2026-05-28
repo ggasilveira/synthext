@@ -1,7 +1,6 @@
 #include "synthlib/compiler.hpp"
 #include "synthlib/bpm_manager.hpp"
 #include "synthlib/command.hpp"
-#include "synthlib/midi_creator.hpp"
 #include <array>
 #include <fstream>
 #include <iostream>
