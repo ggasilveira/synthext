@@ -21,12 +21,15 @@ bool operator==(const Command &lhs, const Command &rhs) {
 }
 
 void Pause::execute(CommandContext &ctx) { ctx.consumer().wait_beats(_beats); }
+unsigned int Pause::beats_taken() { return _beats; }
 void PauseOrRepeat::execute(CommandContext &ctx) {
   if (ctx.last_note) {
-    //ctx.consumer().play_note(ctx.last_note);
+    // ctx.consumer().play_note(ctx.last_note);
   }
 }
+unsigned int PauseOrRepeat::beats_taken() { return 1; }
 void PlayNote::execute(CommandContext &ctx) {}
+unsigned int PlayNote::beats_taken() { return 1; }
 void ChangeInstrument::execute(CommandContext &ctx) {}
 void AddOctave::execute(CommandContext &ctx) {}
 void AddBpm::execute(CommandContext &ctx) {}

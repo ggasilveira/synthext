@@ -10,4 +10,4 @@ run: build
     ./build/apps/app
 
 test: build
-    ./build/src/test_synthlib
+    ./build/synthlib/test_synthlib

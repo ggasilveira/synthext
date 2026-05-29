@@ -1,5 +1,6 @@
 #include "ui.hpp"
 #include "synthlib/compiler.hpp"
+#include "synthlib/midi_file_writer.hpp"
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Flex.H>
 #include <FL/Fl_Native_File_Chooser.H>
@@ -7,11 +8,9 @@
 #include <FL/Fl_Text_Display.H>
 #include <FL/fl_ask.H>
 #include <FL/fl_callback_macros.H>
-#include <cmath>
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <string_view>
 
 void SynthApp::on_save_text(Fl_Widget *widget) {
   Fl_Native_File_Chooser file_chooser;
@@ -30,8 +29,9 @@ void SynthApp::on_load_text(Fl_Widget *widget) {
   }
 }
 std::vector<uint8_t> SynthApp::compile_midi() {
-
-  return compiler.compile(controls->voice_params(), text_buffer->text());
+  MidifileConsumer consumer;
+  compiler.compile(consumer, controls->voice_params(), text_buffer->text());
+  return consumer.generate_file();
 }
 
 void save_binary_file(std::vector<uint8_t> bytes, std::string filename) {

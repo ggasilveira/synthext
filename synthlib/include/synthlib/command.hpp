@@ -53,70 +53,67 @@ private:
 /// Interface for commands to execute different actions
 class ICommand {
 public:
-  virtual ~ICommand() = default;
+  virtual ~ICommand() {}
   /// Execute the command using the execution context.
   /// @param ctx the command execution context
-  virtual void execute(CommandContext &ctx);
+  virtual void execute(CommandContext &ctx) = 0;
   /// Returns the number of beats taken to execute the command.
   /// @return number of beats taken by the command
-  virtual unsigned int beats_taken();
+  virtual unsigned int beats_taken() { return 0; }
 
   /// Returns true if this command was a note playing command
   virtual bool plays_note() { return false; }
 };
 
-class Pause : ICommand {
-
-  void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
+class Pause : public ICommand {
   unsigned int _beats;
 
 public:
   Pause(int beats) : _beats(beats) {}
-};
-
-class PauseOrRepeat : ICommand {
   void execute(CommandContext &ctx) override;
   unsigned int beats_taken() override;
 };
 
-class PlayNote : ICommand {
+class PauseOrRepeat : public ICommand {
+public:
   void execute(CommandContext &ctx) override;
   unsigned int beats_taken() override;
+};
+
+class PlayNote : public ICommand {
   Note _note;
 
 public:
   PlayNote(Note note) : _note(note) {}
-};
-class ChangeInstrument : ICommand {
   void execute(CommandContext &ctx) override;
   unsigned int beats_taken() override;
+};
+class ChangeInstrument : public ICommand {
   Instrument _instr;
 
 public:
   ChangeInstrument(Instrument instr) : _instr(instr) {}
-};
-class AddOctave : ICommand {
   void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
+};
+class AddOctave : public ICommand {
   int _amount;
 
 public:
   AddOctave(int amount) : _amount(amount) {}
+  void execute(CommandContext &ctx) override;
 };
 
-class AddBpm : ICommand {
-  void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
+class AddBpm : public ICommand {
   int _amount;
 
 public:
   AddBpm(int amount) : _amount(amount) {}
+  void execute(CommandContext &ctx) override;
 };
 
-class DoubleVolume : ICommand {
+class DoubleVolume : public ICommand {
+public:
   void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
 };
 
 /// A synthext command. Some commands have associated values.

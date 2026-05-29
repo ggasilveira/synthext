@@ -4,7 +4,6 @@
 #include "synthlib/instrument.hpp"
 #include "synthlib/primitives.hpp"
 #include <cstdint>
-#include <stdexcept>
 #include <vector>
 
 namespace synthlib {
@@ -15,7 +14,7 @@ struct Track {
 };
 
 /// This class is responsible for writing the MIDI file.
-class MidifileConsumer : IEventConsumer {
+class MidifileConsumer : public IEventConsumer {
 public:
   static constexpr int NO_TRACK = -1;
   /// Creates a MidiCreator with the amount of MIDI delta time ticks
@@ -26,6 +25,7 @@ public:
   void play_note(Channel channel, Note note, Octave octave,
                  Volume volume) override;
   void wait_beats(unsigned int n) override;
+  // void wait_ticks(unsigned int n) override;
   void change_instrument(Channel channel, Instrument instr) override;
   void set_bpm(Bpm bpm) override;
 

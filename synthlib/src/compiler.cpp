@@ -291,9 +291,9 @@ void Compiler::compile(IEventConsumer &consumer,
 } // namespace synthlib
 
 // NOLINTBEGIN
-#define CFG_TEST
 #ifdef CFG_TEST
 #include "doctest.h"
+#include "synthlib/mock_event_consumer.hpp"
 
 using namespace synthlib;
 
@@ -323,24 +323,72 @@ TEST_CASE("Line separating") {
   CHECK(lines.at(1) == "");
 }
 
-TEST_CASE("voice parsing notes") {
-  std::string s = "ABCDEFGHMb";
-  std::vector expected = {
-      Command(Note::A), Command(Note::B),  Command(Note::C),
-      Command(Note::D), Command(Note::E),  Command(Note::F),
-      Command(Note::G), Command(Note::Bb), Command(Note::Eb),
-  };
-  Compiler cl;
-  auto voice = cl.compile_line(s);
-  CHECK(voice.size() == 9);
-  for (int i = 0; i < 9; ++i) {
-    CHECK(voice.at(i) == expected.at(i));
-  }
-}
+// TEST_CASE("voice parsing notes") {
+//   std::string s = "ABCDEFGHMb";
+//   std::vector expected = {
+//       Command(Note::A), Command(Note::B),  Command(Note::C),
+//       Command(Note::D), Command(Note::E),  Command(Note::F),
+//       Command(Note::G), Command(Note::Bb), Command(Note::Eb),
+//   };
+//   Compiler cl;
+//   auto voice = cl.compile_line(s);
+//   CHECK(voice.size() == 9);
+//   for (int i = 0; i < 9; ++i) {
+//     CHECK(voice.at(i) == expected.at(i));
+//   }
+// }
 
 TEST_CASE("compiling notes") {
   std::string s = "ABCDEFGHMb";
+  constexpr int number_notes = 9;
+  constexpr int voice_channel = 0;
+  Note notes[number_notes] = {Note::A, Note::B, Note::C,  Note::D, Note::E,
+                              Note::F, Note::G, Note::Bb, Note::Eb};
   Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  cl.compile(consumer, voices, s);
+  const auto &voicetrack = consumer.nth_track(1);
+  auto ev0 = voicetrack.nth_event(0).as_change_instrument();
+  CHECK(ev0 == mock::ChangeInstrument(voice_channel, voices.get_instrument(0)));
+  for (int i = 0; i < number_notes; ++i) {
+    auto ev = voicetrack.nth_event(i + 1).as_play_note();
+    CHECK(ev == mock::PlayNote(voice_channel, notes[i], voices.get_octave(0),
+                               voices.get_volume(0)));
+  }
+}
+
+TEST_CASE("compiling pauses") {
+  std::string s = "abcdefgh";
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  cl.compile(consumer, voices, s);
+  const auto &track = consumer.nth_track(1);
+
+  for (int i = 0; i < s.size(); ++i) {
+    auto ev = track.nth_event(i + 1).as_wait_beats();
+    CHECK(ev == mock::WaitBeats(1));
+  }
+}
+
+TEST_CASE("compiling instrument changes") {
+  std::string s = "13579;,!";
+  constexpr int voice_channel = 0;
+  Instrument instrs[] = {Midi::TubularBells, Midi::TubularBells,
+                         Midi::TubularBells, Midi::TubularBells,
+                         Midi::TubularBells, Midi::TubularBells,
+                         Midi::ChurchOrgan,  Midi::Harmonica};
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  cl.compile(consumer, voices, s);
+  const auto &track = consumer.nth_track(1);
+
+  for (int i = 0; i < s.size(); ++i) {
+    auto ev = track.nth_event(i + 1).as_change_instrument();
+    CHECK(ev == mock::ChangeInstrument(voice_channel, instrs[i]));
+  }
 }
 #endif
 // NOLINTEND
