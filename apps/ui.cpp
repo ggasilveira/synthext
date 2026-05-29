@@ -131,4 +131,10 @@ void SynthApp::play_midi() {
   }
 }
 void SynthApp::stop_midi() { player.stop(); }
-void SynthApp::build_playback() { player.load_soundfont("assets/general.sf2"); }
+void SynthApp::build_playback() { 
+  // Use absolute path for soundfont
+  std::string soundfont_path = std::string(__FILE__);
+  soundfont_path = soundfont_path.substr(0, soundfont_path.rfind("apps"));
+  soundfont_path += "assets/general.sf2";
+  player.load_soundfont(soundfont_path.c_str()); 
+}
