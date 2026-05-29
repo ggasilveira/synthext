@@ -53,14 +53,9 @@ public:
   /// @param source the Synthext language source text
   /// @return the MIDI file as a byte vector
   /// @throw CompilerError if there was any compilation error
-  void compile(const IEventConsumer &consumer, const VoiceManager &voice_params,
+  void compile(IEventConsumer &consumer, const VoiceManager &voice_params,
                std::string source) const;
-  /// Compiles Synthext source and writes to a MIDI file.
-  /// @param voice_params the voices configuration
-  /// @param source the Synthext language source text
-  /// @param filename the filename to write the MIDI to
-  void compile_to_file(const VoiceManager &voice_params, std::string source,
-                       std::string filename) const;
+
   /// Compiles a Synthext voice into a sequece of commands
   /// @param line the voice line
   /// @return A compiled vector of commands

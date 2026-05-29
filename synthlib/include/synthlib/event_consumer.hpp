@@ -37,7 +37,7 @@ public:
 
   /// Return the number of ticks contained in a beat.
   /// @return the number of ticks per beat
-  virtual int ticks_per_beat();
+  // virtual int ticks_per_beat();
 };
 
 } // namespace synthlib

@@ -1,6 +1,7 @@
 #include "synthlib/compiler.hpp"
 #include "synthlib/bpm_manager.hpp"
 #include "synthlib/command.hpp"
+#include "synthlib/event_consumer.hpp"
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -151,7 +152,7 @@ std::vector<std::string> get_lines(std::string &source) {
 
 int voice2track(int voice) { return voice + 1; }
 
-void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
+void create_midi_voice(IEventConsumer &consumer, const VoiceManager &params,
                        BpmManager &bpm_man, Compiler::Voiceline &voice,
                        VoiceId voice_id, int track_num) {
   // we need to keep count of elapsed beats to send bpm changes
@@ -165,35 +166,35 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
   Octave octave = params.get_octave(voice_id);
   Volume volume = params.get_volume(voice_id);
 
-  creator.goto_track(track_num);
+  consumer.change_track(track_num);
 
-  creator.change_instrument(channel, instr);
+  consumer.change_instrument(channel, instr);
 
   for (auto command : voice) {
     switch (command.kind()) {
     case CommandKind::Delay:
-      creator.pause_beats(command.amount());
+      consumer.wait_beats(command.amount());
       elapsed += command.amount();
       break;
     case CommandKind::Pause:
-      creator.pause_beats();
+      consumer.wait_beats(1);
       elapsed += 1;
       break;
     case CommandKind::PauseOrRepeat:
       if (last.kind() == CommandKind::PlayNote) {
-        creator.play_note(channel, last.note(), octave, volume);
+        consumer.play_note(channel, last.note(), octave, volume);
       } else {
-        creator.pause_beats();
+        consumer.wait_beats(1);
       }
       elapsed += 1;
       break;
     case CommandKind::PlayNote:
-      creator.play_note(channel, command.note(), octave, volume);
+      consumer.play_note(channel, command.note(), octave, volume);
       elapsed += 1;
       break;
     case CommandKind::ChangeInstrument:
       instr = command.instrument();
-      creator.change_instrument(channel, instr);
+      consumer.change_instrument(channel, instr);
       break;
     case CommandKind::IncreaseInstrument:
       try {
@@ -201,7 +202,7 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
       } catch (...) {
         instr = Instrument(params.get_instrument(voice_id));
       }
-      creator.change_instrument(channel, instr);
+      consumer.change_instrument(channel, instr);
       break;
     case CommandKind::IncreaseOctave:
       if (octave.value() < Octave::MAX) {
@@ -236,11 +237,11 @@ void create_midi_voice(MidiCreator &creator, const VoiceManager &params,
 }
 
 /// Transforms the list of voice lines into the midi file
-std::vector<uint8_t> create_midi(const VoiceManager &params,
-                                 std::vector<Compiler::Voiceline> voices) {
+void create_midi(IEventConsumer &consumer, const VoiceManager &params,
+                 std::vector<Compiler::Voiceline> voices) {
   // If we don't set ticks_per_beat = 8, bpm changes will result
   // in a delay in the first note after the change
-  MidiCreator creator(8);
+  // MidiCreator creator(8);
   BpmManager bpm_man(params.get_bpm());
   // If the file has too many lines, we just get the first 16 voices
   if (voices.size() > (VoiceId::MAX + 1)) {
@@ -248,18 +249,19 @@ std::vector<uint8_t> create_midi(const VoiceManager &params,
   }
   for (int i = 0; i < voices.size(); ++i) {
     // we reserve space for track 0 to be the bpm track
-    create_midi_voice(creator, params, bpm_man, voices.at(i), VoiceId(i),
+    create_midi_voice(consumer, params, bpm_man, voices.at(i), VoiceId(i),
                       i + 1);
   }
   // and write the bpm track in the reserved space
-  bpm_man.write_bpm_track(creator, 0);
-  return creator.generate_file();
+  bpm_man.write_bpm_track(consumer, 0);
+  // return creator.generate_file();
 }
 
 Compiler::Compiler() { map = build_map(); }
 
-std::vector<uint8_t> Compiler::compile(const VoiceManager &voice_params,
-                                       std::string source) const {
+void Compiler::compile(IEventConsumer &consumer,
+                       const VoiceManager &voice_params,
+                       std::string source) const {
   std::vector<std::string> lines = get_lines(source);
   std::vector<Compiler::Voiceline> voices;
   voices.reserve(lines.size());
@@ -276,18 +278,20 @@ std::vector<uint8_t> Compiler::compile(const VoiceManager &voice_params,
       throw CompilerError(err, line_number);
     }
   }
-  return create_midi(voice_params, voices);
+  create_midi(consumer, voice_params, voices);
 }
-void Compiler::compile_to_file(const VoiceManager &voice_params,
-                               std::string source, std::string filename) const {
-  auto bytes = compile(voice_params, std::move(source));
-  std::ofstream outfile(filename, std::ios::binary);
-  outfile.write((char *)bytes.data(), bytes.size());
-  outfile.close();
-}
+// void Compiler::compile_to_file(const VoiceManager &voice_params,
+//                                std::string source, std::string filename)
+//                                const {
+//   auto bytes = compile(voice_params, std::move(source));
+//   std::ofstream outfile(filename, std::ios::binary);
+//   outfile.write((char *)bytes.data(), bytes.size());
+//   outfile.close();
+// }
 } // namespace synthlib
 
 // NOLINTBEGIN
+#define CFG_TEST
 #ifdef CFG_TEST
 #include "doctest.h"
 
@@ -332,6 +336,11 @@ TEST_CASE("voice parsing notes") {
   for (int i = 0; i < 9; ++i) {
     CHECK(voice.at(i) == expected.at(i));
   }
+}
+
+TEST_CASE("compiling notes") {
+  std::string s = "ABCDEFGHMb";
+  Compiler cl;
 }
 #endif
 // NOLINTEND
