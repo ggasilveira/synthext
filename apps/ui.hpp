@@ -50,6 +50,7 @@ private:
   CALLBACK(SynthApp, on_show_info);
 
   void build_menu_bar(Fl_Window &window);
+  void build_main_frame(Fl_Window &window);
   void build_text_editor();
   void build_controls();
   void build_playback();

@@ -81,7 +81,7 @@ void Controls::call_play() {
   }
 }
 void Controls::call_stop() {
-  if (play_cb) {
+  if (stop_cb) {
     stop_cb();
   }
 }

@@ -14,11 +14,12 @@
 #include <string_view>
 #include <iterator>
 
-// forward declaration for helper defined later in this file
+// forward declarations for helpers defined later in this file
 static bool choose_file(Fl_Native_File_Chooser::Type type,
                         std::string &out_filename,
                         const char *title,
                         const char *filter = nullptr);
+static std::string asset_path(const char *relative_path);
 
 void SynthApp::on_save_text(Fl_Widget *widget) {
   std::string filename;
@@ -66,32 +67,10 @@ void SynthApp::on_save_midi(Fl_Widget *widget) {
 }
 
 void SynthApp::build(Fl_Window &window) {
-
   window.begin();
 
-  // Putting the menu bar in the flex wasn't working for
-  // some reason, so we're putting outside and calculating
-  // the sizes manually.
   build_menu_bar(window);
-
-  // the dimensions of the frame which will hold all
-  // the other widgets.
-  int frame_x = 0;
-  int frame_y = menu_bar->h();
-  int frame_w = window.w();
-  int frame_h = window.h() - menu_bar->h();
-
-  frame = new Fl_Flex(frame_x, frame_y, frame_w, frame_h, Fl_Flex::ROW);
-
-  build_text_editor();
-  controls->build();
-  controls->on_play([&]() { play_midi(); });
-  controls->on_stop([&]() { stop_midi(); });
-
-  frame->fixed(controls->root(), CONTROLS_WIDTH);
-  frame->resizable(text_editor);
-
-  frame->end();
+  build_main_frame(window);
 
   window.resizable(frame);
   window.end();
@@ -107,9 +86,18 @@ void SynthApp::build_menu_bar(Fl_Window &window) {
   menu_bar->add("info/How to Use", 0, SynthApp::on_show_info_cb, this);
 }
 
-void text_changed_cb(int pos, int n_ins, int n_del, int n_restyled,
-                     const char *deleted_text, void *changed_var) {
-  *static_cast<bool *>(changed_var) = true;
+void SynthApp::build_main_frame(Fl_Window &window) {
+  int frame_y = menu_bar->h();
+  frame = new Fl_Flex(0, frame_y, window.w(), window.h() - frame_y,
+                      Fl_Flex::ROW);
+
+  build_text_editor();
+  build_controls();
+
+  frame->fixed(controls->root(), CONTROLS_WIDTH);
+  frame->resizable(text_editor);
+
+  frame->end();
 }
 
 void SynthApp::build_text_editor() {
@@ -128,10 +116,7 @@ void SynthApp::build_text_editor() {
 }
 
 void SynthApp::on_show_info(Fl_Widget *widget) {
-  // build absolute path to info file relative to this source
-  std::string info_path = std::string(__FILE__);
-  info_path = info_path.substr(0, info_path.rfind("apps"));
-  info_path += "assets/how_to_use.txt";
+  std::string info_path = asset_path("assets/how_to_use.txt");
 
   std::ifstream infile(info_path);
   if (!infile) {
@@ -162,12 +147,15 @@ void SynthApp::play_midi() {
   }
 }
 void SynthApp::stop_midi() { player.stop(); }
-void SynthApp::build_playback() { 
-  // Use absolute path for soundfont
-  std::string soundfont_path = std::string(__FILE__);
-  soundfont_path = soundfont_path.substr(0, soundfont_path.rfind("apps"));
-  soundfont_path += "assets/general.sf2";
-  player.load_soundfont(soundfont_path.c_str()); 
+void SynthApp::build_controls() {
+  controls->build();
+  controls->on_play([this]() { play_midi(); });
+  controls->on_stop([this]() { stop_midi(); });
+}
+
+void SynthApp::build_playback() {
+  std::string soundfont_path = asset_path("assets/general.sf2");
+  player.load_soundfont(soundfont_path.c_str());
 }
 
 static bool choose_file(Fl_Native_File_Chooser::Type type,
@@ -185,5 +173,12 @@ static bool choose_file(Fl_Native_File_Chooser::Type type,
     return true;
   }
   return false;
+}
+
+static std::string asset_path(const char *relative_path) {
+  std::string asset_dir = std::string(__FILE__);
+  asset_dir = asset_dir.substr(0, asset_dir.rfind("apps"));
+  asset_dir += relative_path;
+  return asset_dir;
 }
 
