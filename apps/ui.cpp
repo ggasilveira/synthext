@@ -12,21 +12,31 @@
 #include <functional>
 #include <iostream>
 #include <string_view>
+#include <iterator>
+
+// forward declaration for helper defined later in this file
+static bool choose_file(Fl_Native_File_Chooser::Type type,
+                        std::string &out_filename,
+                        const char *title,
+                        const char *filter = nullptr);
 
 void SynthApp::on_save_text(Fl_Widget *widget) {
-  Fl_Native_File_Chooser file_chooser;
-  file_chooser.title("Save File As...");
-  file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
-  if (file_chooser.show() == 0) {
-    text_buffer->savefile(file_chooser.filename());
+  std::string filename;
+  if (choose_file(Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+                  filename,
+                  "Save File As...",
+                  "Text Files (*.txt)")) {
+    text_buffer->savefile(filename.c_str());
   }
 }
+
 void SynthApp::on_load_text(Fl_Widget *widget) {
-  Fl_Native_File_Chooser file_chooser;
-  file_chooser.title("Load File");
-  file_chooser.type(Fl_Native_File_Chooser::BROWSE_FILE);
-  if (file_chooser.show() == 0) {
-    text_buffer->loadfile(file_chooser.filename());
+  std::string filename;
+  if (choose_file(Fl_Native_File_Chooser::BROWSE_FILE,
+                  filename,
+                  "Load File",
+                  "Text Files (*.txt)")) {
+    text_buffer->loadfile(filename.c_str());
   }
 }
 std::vector<uint8_t> SynthApp::compile_midi() {
@@ -46,17 +56,12 @@ void show_compile_error(const CompilerError &err) {
 }
 
 void SynthApp::on_save_midi(Fl_Widget *widget) {
-  try {
-    auto midifile = compile_midi();
-    Fl_Native_File_Chooser file_chooser;
-    file_chooser.title("Save File As...");
-    file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
-    file_chooser.filter("MIDI Files (*.mid)");
-    if (file_chooser.show() == 0) {
-      save_binary_file(midifile, file_chooser.filename());
-    }
-  } catch (CompilerError err) {
-    show_compile_error(err);
+  std::string filename;
+  if (choose_file(Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+                  filename,
+                  "Save File As...",
+                  "MIDI Files (*.mid)")) {
+    save_binary_file(compile_midi(), filename);
   }
 }
 
@@ -98,6 +103,7 @@ void SynthApp::build_menu_bar(Fl_Window &window) {
   menu_bar->add("File/Load Text", 0, SynthApp::on_load_text_cb, this);
   menu_bar->add("File/Save Text", 0, SynthApp::on_save_text_cb, this);
   menu_bar->add("File/Save MIDI", 0, SynthApp::on_save_midi_cb, this);
+  menu_bar->add("info/How to Use", 0, SynthApp::on_show_info_cb, this);
 }
 
 void text_changed_cb(int pos, int n_ins, int n_del, int n_restyled,
@@ -120,6 +126,30 @@ void SynthApp::build_text_editor() {
   // text_buffer->add_modify_callback(text_changed_cb, &text_changed);
 }
 
+void SynthApp::on_show_info(Fl_Widget *widget) {
+  // build absolute path to info file relative to this source
+  std::string info_path = std::string(__FILE__);
+  info_path = info_path.substr(0, info_path.rfind("apps"));
+  info_path += "assets/how_to_use.txt";
+
+  std::ifstream infile(info_path);
+  if (!infile) {
+    fl_message_title("info file not found");
+    fl_message("Could not open info file: %s", info_path.c_str());
+    return;
+  }
+  std::string content((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
+
+  auto *info_win = new Fl_Double_Window(600, 400, "Synthext — How to Use");
+  info_win->begin();
+  auto *buf = new Fl_Text_Buffer();
+  auto *disp = new Fl_Text_Display(10, 10, 580, 380);
+  disp->buffer(buf);
+  buf->text(content.c_str());
+  info_win->end();
+  info_win->show();
+}
+
 void SynthApp::play_midi() {
   try {
     player.load_midi(compile_midi());
@@ -138,3 +168,21 @@ void SynthApp::build_playback() {
   soundfont_path += "assets/general.sf2";
   player.load_soundfont(soundfont_path.c_str()); 
 }
+
+static bool choose_file(Fl_Native_File_Chooser::Type type,
+                        std::string &out_filename,
+                        const char *title,
+                        const char *filter) {
+  Fl_Native_File_Chooser chooser;
+  chooser.title(title);
+  chooser.type(type);
+  if (filter) {
+    chooser.filter(filter);
+  }
+  if (chooser.show() == 0) {
+    out_filename = chooser.filename();
+    return true;
+  }
+  return false;
+}
+
