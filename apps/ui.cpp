@@ -87,7 +87,6 @@ void SynthApp::build(Fl_Window &window) {
   controls->build();
   controls->on_play([&]() { play_midi(); });
   controls->on_stop([&]() { stop_midi(); });
-  build_playback();
 
   frame->fixed(controls->root(), CONTROLS_WIDTH);
   frame->resizable(text_editor);
@@ -96,6 +95,8 @@ void SynthApp::build(Fl_Window &window) {
 
   window.resizable(frame);
   window.end();
+
+  build_playback();
 }
 
 void SynthApp::build_menu_bar(Fl_Window &window) {
