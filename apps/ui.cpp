@@ -29,7 +29,9 @@ void SynthApp::on_load_text(Fl_Widget *widget) {
   }
 }
 std::vector<uint8_t> SynthApp::compile_midi() {
-  MidifileConsumer consumer;
+  // we need ticks per beat = 8 to avoid notes delaying after bpm change
+  constexpr int ticks_per_beat = 8;
+  MidifileConsumer consumer(ticks_per_beat);
   compiler.compile(consumer, controls->voice_params(), text_buffer->text());
   return consumer.generate_file();
 }

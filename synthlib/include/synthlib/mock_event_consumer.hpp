@@ -148,6 +148,7 @@ class MockTrack {
 public:
   /// Returns the nth event sent to this track
   MockEvent nth_event(unsigned int nth) const { return _events.at(nth); }
+  unsigned int size() const { return _events.size(); }
   /// Pushes an event
   void push_event(MockEvent evt) { _events.push_back(evt); }
 

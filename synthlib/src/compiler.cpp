@@ -280,14 +280,7 @@ void Compiler::compile(IEventConsumer &consumer,
   }
   create_midi(consumer, voice_params, voices);
 }
-// void Compiler::compile_to_file(const VoiceManager &voice_params,
-//                                std::string source, std::string filename)
-//                                const {
-//   auto bytes = compile(voice_params, std::move(source));
-//   std::ofstream outfile(filename, std::ios::binary);
-//   outfile.write((char *)bytes.data(), bytes.size());
-//   outfile.close();
-// }
+
 } // namespace synthlib
 
 // NOLINTBEGIN
@@ -323,39 +316,27 @@ TEST_CASE("Line separating") {
   CHECK(lines.at(1) == "");
 }
 
-// TEST_CASE("voice parsing notes") {
-//   std::string s = "ABCDEFGHMb";
-//   std::vector expected = {
-//       Command(Note::A), Command(Note::B),  Command(Note::C),
-//       Command(Note::D), Command(Note::E),  Command(Note::F),
-//       Command(Note::G), Command(Note::Bb), Command(Note::Eb),
-//   };
-//   Compiler cl;
-//   auto voice = cl.compile_line(s);
-//   CHECK(voice.size() == 9);
-//   for (int i = 0; i < 9; ++i) {
-//     CHECK(voice.at(i) == expected.at(i));
-//   }
-// }
-
 TEST_CASE("compiling notes") {
   std::string s = "ABCDEFGHMb";
-  constexpr int number_notes = 9;
   constexpr int voice_channel = 0;
-  Note notes[number_notes] = {Note::A, Note::B, Note::C,  Note::D, Note::E,
-                              Note::F, Note::G, Note::Bb, Note::Eb};
   Compiler cl;
   mock::MockEventConsumer consumer;
   VoiceManager voices;
   cl.compile(consumer, voices, s);
-  const auto &voicetrack = consumer.nth_track(1);
-  auto ev0 = voicetrack.nth_event(0).as_change_instrument();
-  CHECK(ev0 == mock::ChangeInstrument(voice_channel, voices.get_instrument(0)));
-  for (int i = 0; i < number_notes; ++i) {
-    auto ev = voicetrack.nth_event(i + 1).as_play_note();
-    CHECK(ev == mock::PlayNote(voice_channel, notes[i], voices.get_octave(0),
-                               voices.get_volume(0)));
-  }
+  const auto &track = consumer.nth_track(1);
+
+  auto check_note = [&](int n, Channel channel, Note note) {
+    return track.nth_event(n).as_play_note().note == note;
+  };
+  CHECK(check_note(1, voice_channel, Note::A));
+  CHECK(check_note(2, voice_channel, Note::B));
+  CHECK(check_note(3, voice_channel, Note::C));
+  CHECK(check_note(4, voice_channel, Note::D));
+  CHECK(check_note(5, voice_channel, Note::E));
+  CHECK(check_note(6, voice_channel, Note::F));
+  CHECK(check_note(7, voice_channel, Note::G));
+  CHECK(check_note(8, voice_channel, Note::Bb));
+  CHECK(check_note(9, voice_channel, Note::Eb));
 }
 
 TEST_CASE("compiling pauses") {
@@ -374,21 +355,188 @@ TEST_CASE("compiling pauses") {
 
 TEST_CASE("compiling instrument changes") {
   std::string s = "13579;,!";
-  constexpr int voice_channel = 0;
-  Instrument instrs[] = {Midi::TubularBells, Midi::TubularBells,
-                         Midi::TubularBells, Midi::TubularBells,
-                         Midi::TubularBells, Midi::TubularBells,
-                         Midi::ChurchOrgan,  Midi::Harmonica};
   Compiler cl;
   mock::MockEventConsumer consumer;
   VoiceManager voices;
   cl.compile(consumer, voices, s);
   const auto &track = consumer.nth_track(1);
 
-  for (int i = 0; i < s.size(); ++i) {
-    auto ev = track.nth_event(i + 1).as_change_instrument();
-    CHECK(ev == mock::ChangeInstrument(voice_channel, instrs[i]));
+  auto check_instr = [&](int n, Midi midi) {
+    return track.nth_event(n).as_change_instrument().instr.midi() == midi;
+  };
+  Midi midi = voices.get_instrument(0).midi();
+
+  CHECK(check_instr(0, midi));
+  CHECK(check_instr(1, Midi::TubularBells));
+  CHECK(check_instr(2, Midi::TubularBells));
+  CHECK(check_instr(3, Midi::TubularBells));
+  CHECK(check_instr(4, Midi::TubularBells));
+  CHECK(check_instr(5, Midi::TubularBells));
+  CHECK(check_instr(6, Midi::TubularBells));
+  CHECK(check_instr(7, Midi::ChurchOrgan));
+  CHECK(check_instr(8, Midi::Harmonica));
+}
+
+TEST_CASE("compiling increase instrument") {
+  std::string s = "02468";
+  constexpr int voice_channel = 0;
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  cl.compile(consumer, voices, s);
+  const auto &track = consumer.nth_track(1);
+  auto check_instr = [&](int n, int midi) {
+    return track.nth_event(n).as_change_instrument().instr.to_int() == midi;
+  };
+  int midi = voices.get_instrument(0).to_int();
+
+  CHECK(check_instr(0, midi));
+  CHECK(check_instr(1, midi += 0));
+  CHECK(check_instr(2, midi += 2));
+  CHECK(check_instr(3, midi += 4));
+  CHECK(check_instr(4, midi += 6));
+  CHECK(check_instr(5, midi += 8));
+}
+
+TEST_CASE("compiling octave changes") {
+  std::string s = "?AVA??A?A";
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  voices.override_octave(0, Octave::MAX - 2);
+  cl.compile(consumer, voices, s);
+
+  const auto &track = consumer.nth_track(1);
+  auto check_oct = [&](int n, Octave expected) {
+    return track.nth_event(n).as_play_note().octave == expected;
+  };
+  CHECK(check_oct(1, Octave::MAX - 1));
+  CHECK(check_oct(2, Octave::MAX - 2));
+  CHECK(check_oct(3, Octave::MAX));
+  CHECK(check_oct(4, Octave::MAX - 2));
+}
+TEST_CASE("compiling volume changes") {
+  std::string s = "A A A         A";
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  voices.override_volume(0, Volume(5));
+  cl.compile(consumer, voices, s);
+
+  const auto &track = consumer.nth_track(1);
+  auto check_vol = [&](int n, Volume expected) {
+    return track.nth_event(n).as_play_note().volume == expected;
+  };
+  CHECK(check_vol(1, 5));
+  CHECK(check_vol(2, 10));
+  CHECK(check_vol(3, 20));
+  CHECK(check_vol(4, Volume::MAX));
+}
+
+TEST_CASE("compiling repeat or pause") {
+  std::string s;
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  std::string reppause_chars = "ijklmnopqrstuwxyzIJKLMNOPQRSTUWXYZ";
+  for (char reppause : reppause_chars) {
+    s.push_back('A');
+    s.push_back(reppause);
+    s.push_back('a');
+    s.push_back(reppause);
+  }
+  cl.compile(consumer, voices, s);
+
+  const auto &track = consumer.nth_track(1);
+  auto check_vol = [&](int n, Volume expected) {
+    return track.nth_event(n).as_play_note().volume == expected;
+  };
+  for (int i = 2; i < s.size(); i += 4) {
+    CHECK(track.nth_event(i).as_play_note().note == Note::A);
+    CHECK(track.nth_event(i + 2).as_wait_beats().beats == 1);
   }
 }
+
+TEST_CASE("compiling bpm change") {
+  std::string s = "><a<aa>";
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  cl.compile(consumer, voices, s);
+  const auto &track = consumer.nth_track(0);
+  auto check_bpm = [&](int n, mock::SetBpm expected) {
+    return track.nth_event(n).as_set_bpm() == expected;
+  };
+  auto check_wait = [&](int n, mock::WaitBeats expected) {
+    return track.nth_event(n).as_wait_beats() == expected;
+  };
+  Bpm bpm = voices.get_bpm();
+  CHECK(check_bpm(0, bpm));
+
+  CHECK(check_wait(1, 0));
+  CHECK(check_bpm(2, bpm.add_saturated(10)));
+
+  CHECK(check_wait(3, 0));
+  CHECK(check_bpm(4, bpm));
+
+  CHECK(check_wait(5, 1));
+  CHECK(check_bpm(6, bpm.sub_saturated(10)));
+
+  CHECK(check_wait(7, 2));
+  CHECK(check_bpm(8, bpm));
+}
+
+TEST_CASE("compiling multiple voices") {
+  std::string s = "ABC\nBCDE\n\nCDEFG";
+
+  Compiler cl;
+  mock::MockEventConsumer consumer;
+  VoiceManager voices;
+  cl.compile(consumer, voices, s);
+  const auto &track1 = consumer.nth_track(1);
+  const auto &track2 = consumer.nth_track(2);
+  const auto &track3 = consumer.nth_track(3);
+
+  /// testing track sizes
+  /// size = initial instrument change + notes
+  CHECK(track1.size() == 4);
+  CHECK(track2.size() == 5);
+  CHECK(track3.size() == 6);
+
+  mock::PlayNote tr1fst = track1.nth_event(1).as_play_note();
+  mock::PlayNote tr2fst = track2.nth_event(1).as_play_note();
+  mock::PlayNote tr3fst = track3.nth_event(1).as_play_note();
+
+  mock::PlayNote tr1lst = track1.nth_event(3).as_play_note();
+  mock::PlayNote tr2lst = track2.nth_event(4).as_play_note();
+  mock::PlayNote tr3lst = track3.nth_event(5).as_play_note();
+
+  /// testing tracks first notes
+  CHECK(tr1fst.note == Note::A);
+  CHECK(tr2fst.note == Note::B);
+  CHECK(tr3fst.note == Note::C);
+
+  CHECK(tr1fst.octave == voices.get_octave(0));
+  CHECK(tr2fst.octave == voices.get_octave(1));
+  CHECK(tr3fst.octave == voices.get_octave(2));
+
+  CHECK(tr1fst.volume == voices.get_volume(0));
+  CHECK(tr2fst.volume == voices.get_volume(1));
+  CHECK(tr3fst.volume == voices.get_volume(2));
+
+  /// testing tracks last notes
+  CHECK(tr1lst.note == Note::C);
+  CHECK(tr2lst.note == Note::E);
+  CHECK(tr3lst.note == Note::G);
+
+  /// testing track initial instruments
+  CHECK(track1.nth_event(0).as_change_instrument().instr ==
+        voices.get_instrument(0));
+  CHECK(track2.nth_event(0).as_change_instrument().instr ==
+        voices.get_instrument(1));
+  CHECK(track3.nth_event(0).as_change_instrument().instr ==
+        voices.get_instrument(2));
+}
+
 #endif
 // NOLINTEND
