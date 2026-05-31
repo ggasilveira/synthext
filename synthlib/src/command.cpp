@@ -1,4 +1,5 @@
 #include "synthlib/command.hpp"
+#include "spdlog/spdlog.h"
 
 namespace synthlib {
 bool operator==(const Command &lhs, const Command &rhs) {
@@ -30,8 +31,12 @@ PauseOrRepeat::note_played(const CommandContext &ctx) const {
 }
 void PauseOrRepeat::_execute(CommandContext &ctx) {
   if (ctx.last_note()) {
+    spdlog::debug("repeating last note");
     ctx.consumer().play_note(ctx.channel(), ctx.last_note().value(),
                              ctx.octave(), ctx.volume());
+  } else {
+    spdlog::debug("pausing");
+    ctx.consumer().wait_beats(1);
   }
 }
 

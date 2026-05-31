@@ -36,49 +36,51 @@ std::string CompilerError::gen_msg() const {
 // We replace all occurrences of "Mb", which is the only
 // multi-letter token with "+", which is an unused character
 // so we can use an array to map characters to commands.
-Compiler::Mapping build_map() {
-  Compiler::Mapping map{};
+void Compiler::build_map() {
+  using std::make_shared;
+
+  auto pause_or_repeat = make_shared<PauseOrRepeat>();
+  for (int i = 0; i < map.size(); ++i) {
+    map.at(i) = pause_or_repeat;
+  }
 
   // note commands
-  map['A'] = Command(Note::A);
-  map['B'] = Command(Note::B);
-  map['C'] = Command(Note::C);
-  map['D'] = Command(Note::D);
-  map['E'] = Command(Note::E);
-  map['F'] = Command(Note::F);
-  map['G'] = Command(Note::G);
-  map['H'] = Command(Note::Bb);
-
-  map[Mb] = Command(Note::Eb);
+  map['A'] = make_shared<PlayNote>(Note::A);
+  map['B'] = make_shared<PlayNote>(Note::B);
+  map['C'] = make_shared<PlayNote>(Note::C);
+  map['D'] = make_shared<PlayNote>(Note::D);
+  map['E'] = make_shared<PlayNote>(Note::E);
+  map['F'] = make_shared<PlayNote>(Note::F);
+  map['G'] = make_shared<PlayNote>(Note::G);
+  map['H'] = make_shared<PlayNote>(Note::Bb);
+  map[Mb] = make_shared<PlayNote>(Note::Eb);
 
   // pause commands
   for (auto c : "abcdefgh") {
-    map.at(c) = Command(CommandKind::Pause);
+    map.at(c) = make_shared<Pause>(1);
   }
 
   // volume commands
-  map[' '] = Command(CommandKind::DoubleVolume);
+  map[' '] = make_shared<DoubleVolume>();
 
   // instrument commands
-  map['!'] = Command(Instrument(Midi::Harmonica));
-  map[';'] = Command(Instrument(Midi::TubularBells));
-  map[','] = Command(Instrument(Midi::ChurchOrgan));
+  map['!'] = make_shared<ChangeInstrument>(Midi::Harmonica);
+  map[','] = make_shared<ChangeInstrument>(Midi::ChurchOrgan);
+  map[';'] = make_shared<ChangeInstrument>(Midi::TubularBells);
   for (auto c : "13579") {
-    map.at(c) = Command(Instrument(Midi::TubularBells));
+    map.at(c) = make_shared<ChangeInstrument>(Midi::TubularBells);
   }
   for (auto c : "02468") {
-    map.at(c) = Command(CommandKind::IncreaseInstrument, c - '0');
+    map.at(c) = make_shared<AddInstrument>(c - '0');
   }
 
   // octave commands
-  map['?'] = Command(CommandKind::IncreaseOctave);
-  map['V'] = Command(CommandKind::DecreaseOctave);
+  map['?'] = make_shared<AddOctave>(1);
+  map['V'] = make_shared<AddOctave>(-1);
 
   // bpm commands
-  map['<'] = Command(CommandKind::DecreaseBpm, 10);
-  map['>'] = Command(CommandKind::IncreaseBpm, 10);
-
-  return map;
+  map['>'] = make_shared<AddBpm>(10);
+  map['<'] = make_shared<AddBpm>(-10);
 }
 
 /// Parses a delay clause "[<number>]"
@@ -105,7 +107,7 @@ Compiler::Voiceline Compiler::compile_line(const std::string &line) const {
   std::regex Mb_pattern("Mb");
   auto linefix = std::regex_replace(line, Mb_pattern, Mb_s);
 
-  std::vector<Command> comms;
+  Compiler::Voiceline comms;
   CommandKind last = CommandKind::Pause;
   char last_char = 0;
   string_view::size_type cursor = 0;
@@ -117,7 +119,7 @@ Compiler::Voiceline Compiler::compile_line(const std::string &line) const {
       throw CompilerError::Kind::UnclosedDelay;
     }
     int delay = parse_delay(linefix.substr(1, cursor - 1));
-    comms.emplace_back(CommandKind::Delay, delay);
+    comms.push_back(std::make_shared<Pause>(delay));
     ++cursor;
   }
 
@@ -155,83 +157,84 @@ void create_midi_voice(IEventConsumer &consumer, const VoiceManager &params,
                        VoiceId voice_id, int track_num) {
   // we need to keep count of elapsed beats to send bpm changes
   // to the bpm manager
-  uint32_t elapsed = 0;
+  // uint32_t elapsed = 0;
   // last command for pause or repeat
-  Command last;
+  // Command last;
   Channel channel(voice_id.value());
-  // get the initial parameters
-  Instrument instr = params.get_instrument(voice_id);
-  Octave octave = params.get_octave(voice_id);
-  Volume volume = params.get_volume(voice_id);
+  VoiceParams initial_params = params.get_voice_params(voice_id);
 
   consumer.change_track(track_num);
+  consumer.change_instrument(channel, initial_params.instrument);
 
-  consumer.change_instrument(channel, instr);
-
-  for (auto command : voice) {
-    switch (command.kind()) {
-    case CommandKind::Delay:
-      consumer.wait_beats(command.amount());
-      elapsed += command.amount();
-      break;
-    case CommandKind::Pause:
-      consumer.wait_beats(1);
-      elapsed += 1;
-      break;
-    case CommandKind::PauseOrRepeat:
-      if (last.kind() == CommandKind::PlayNote) {
-        consumer.play_note(channel, last.note(), octave, volume);
-      } else {
-        consumer.wait_beats(1);
-      }
-      elapsed += 1;
-      break;
-    case CommandKind::PlayNote:
-      consumer.play_note(channel, command.note(), octave, volume);
-      elapsed += 1;
-      break;
-    case CommandKind::ChangeInstrument:
-      instr = command.instrument();
-      consumer.change_instrument(channel, instr);
-      break;
-    case CommandKind::IncreaseInstrument:
-      try {
-        instr = Instrument(instr.to_int() + command.amount());
-      } catch (...) {
-        instr = Instrument(params.get_instrument(voice_id));
-      }
-      consumer.change_instrument(channel, instr);
-      break;
-    case CommandKind::IncreaseOctave:
-      if (octave.value() < Octave::MAX) {
-        octave = Octave(octave.value() + 1);
-      } else {
-        octave = params.get_octave(voice_id);
-      }
-      break;
-    case CommandKind::DecreaseOctave:
-      if (octave.value() > Octave::MIN) {
-        octave = Octave(octave.value() - 1);
-      } else {
-        octave = params.get_octave(voice_id);
-      }
-      break;
-    case CommandKind::IncreaseBpm:
-      bpm_man.change_bpm(elapsed, command.amount());
-      break;
-    case CommandKind::DecreaseBpm:
-      bpm_man.change_bpm(elapsed, -command.amount());
-      break;
-    case CommandKind::DoubleVolume:
-      try {
-        volume = Volume(volume.value() * 2);
-      } catch (...) {
-        volume = Volume(Volume::MAX);
-      }
-      break;
-    }
-    last = command;
+  CommandContext ctx(consumer, bpm_man, channel, initial_params);
+  for (const auto &command : voice) {
+    command->execute(ctx);
   }
+
+  // for (auto command : voice) {
+  //   switch (command.kind()) {
+  //   case CommandKind::Delay:
+  //     consumer.wait_beats(command.amount());
+  //     elapsed += command.amount();
+  //     break;
+  //   case CommandKind::Pause:
+  //     consumer.wait_beats(1);
+  //     elapsed += 1;
+  //     break;
+  //   case CommandKind::PauseOrRepeat:
+  //     if (last.kind() == CommandKind::PlayNote) {
+  //       consumer.play_note(channel, last.note(), octave, volume);
+  //     } else {
+  //       consumer.wait_beats(1);
+  //     }
+  //     elapsed += 1;
+  //     break;
+  //   case CommandKind::PlayNote:
+  //     consumer.play_note(channel, command.note(), octave, volume);
+  //     elapsed += 1;
+  //     break;
+  //   case CommandKind::ChangeInstrument:
+  //     instr = command.instrument();
+  //     consumer.change_instrument(channel, instr);
+  //     break;
+  //   case CommandKind::IncreaseInstrument:
+  //     try {
+  //       instr = Instrument(instr.to_int() + command.amount());
+  //     } catch (...) {
+  //       instr = Instrument(params.get_instrument(voice_id));
+  //     }
+  //     consumer.change_instrument(channel, instr);
+  //     break;
+  //   case CommandKind::IncreaseOctave:
+  //     if (octave.value() < Octave::MAX) {
+  //       octave = Octave(octave.value() + 1);
+  //     } else {
+  //       octave = params.get_octave(voice_id);
+  //     }
+  //     break;
+  //   case CommandKind::DecreaseOctave:
+  //     if (octave.value() > Octave::MIN) {
+  //       octave = Octave(octave.value() - 1);
+  //     } else {
+  //       octave = params.get_octave(voice_id);
+  //     }
+  //     break;
+  //   case CommandKind::IncreaseBpm:
+  //     bpm_man.change_bpm(elapsed, command.amount());
+  //     break;
+  //   case CommandKind::DecreaseBpm:
+  //     bpm_man.change_bpm(elapsed, -command.amount());
+  //     break;
+  //   case CommandKind::DoubleVolume:
+  //     try {
+  //       volume = Volume(volume.value() * 2);
+  //     } catch (...) {
+  //       volume = Volume(Volume::MAX);
+  //     }
+  //     break;
+  //   }
+  // last = command;
+  //}
 }
 
 /// Transforms the list of voice lines into the midi file
@@ -255,7 +258,7 @@ void create_midi(IEventConsumer &consumer, const VoiceManager &params,
   // return creator.generate_file();
 }
 
-Compiler::Compiler() { map = build_map(); }
+Compiler::Compiler() { build_map(); }
 
 void Compiler::compile(IEventConsumer &consumer,
                        const VoiceManager &voice_params,
@@ -284,6 +287,7 @@ void Compiler::compile(IEventConsumer &consumer,
 // NOLINTBEGIN
 #ifdef CFG_TEST
 #include "doctest.h"
+#include "spdlog/spdlog.h"
 #include "synthlib/mock_event_consumer.hpp"
 
 using namespace synthlib;
@@ -432,6 +436,7 @@ TEST_CASE("compiling volume changes") {
 }
 
 TEST_CASE("compiling repeat or pause") {
+  spdlog::set_level(spdlog::level::debug);
   std::string s;
   Compiler cl;
   mock::MockEventConsumer consumer;

@@ -10,15 +10,39 @@ const uint8_t NOTE_ON = 0x9;
 const uint8_t PROG_CHANGE = 0xC;
 const uint8_t CHANNEL_MODE = 0xB;
 
+constexpr uint32_t VARLEN_MAX = 0x0FFFFFFF;
+
 // NOLINTBEGIN
+/// Writes 32bit number as Variable Length Quantity in the buffer.
+/// Each byte contains 7 bits of information, and the most significant
+/// is clear for the last byte and set for all others. Representation
+/// is big-endian.
 void varlen(uint32_t number, std::vector<uint8_t> &buf) {
-  uint8_t bits7 = number & 0x7F;
-  number >>= 7;
-  buf.push_back(bits7);
+  const int info_bits_per_byte = 7;
+  const uint8_t info_bits_mask = 0x7f;
+  const uint8_t not_last_byte_bit = 0x80;
+
+  if (number > VARLEN_MAX) {
+    throw std::invalid_argument("number exceeded maximum varlen value");
+  }
+
+  std::array<uint8_t, 4> byte_buf = {0};
+  int buflen = 0;
+  uint8_t bits7 = number & info_bits_mask;
+
+  number >>= info_bits_per_byte;
+  byte_buf.at(buflen++) = bits7;
+
   while (number != 0) {
-    bits7 = number & 0x7F | 0x80;
-    number >>= 7;
-    buf.push_back(bits7);
+    bits7 = number & info_bits_mask | not_last_byte_bit;
+    number >>= info_bits_per_byte;
+    byte_buf.at(buflen++) = bits7;
+    // buf.push_back(bits7);
+    // spdlog::debug("varlen wrote: {}", bits7);
+  }
+  for (int i = buflen - 1; i >= 0; --i) {
+    buf.push_back(byte_buf.at(i));
+    spdlog::debug("varlen wrote: {}", byte_buf.at(i));
   }
 }
 
@@ -252,65 +276,65 @@ TEST_CASE("variable length quantity") {
 
   varlen(0x80, buf);
   CHECK(buf.size() == 2);
-  CHECK(buf.at(1) == 0x81);
-  CHECK(buf.at(0) == 0);
+  CHECK(buf.at(0) == 0x81);
+  CHECK(buf.at(1) == 0);
   buf.clear();
 
   varlen(0x2000, buf);
   CHECK(buf.size() == 2);
-  CHECK(buf.at(1) == 0xC0);
-  CHECK(buf.at(0) == 0);
+  CHECK(buf.at(0) == 0xC0);
+  CHECK(buf.at(1) == 0);
   buf.clear();
 
   varlen(0x3FFF, buf);
   CHECK(buf.size() == 2);
-  CHECK(buf.at(1) == 0xFF);
-  CHECK(buf.at(0) == 0x7F);
+  CHECK(buf.at(0) == 0xFF);
+  CHECK(buf.at(1) == 0x7F);
   buf.clear();
 
   varlen(0x4000, buf);
   CHECK(buf.size() == 3);
-  CHECK(buf.at(2) == 0x81);
+  CHECK(buf.at(0) == 0x81);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x00);
   buf.clear();
 
   varlen(0x100000, buf);
   CHECK(buf.size() == 3);
-  CHECK(buf.at(2) == 0xC0);
+  CHECK(buf.at(0) == 0xC0);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x00);
   buf.clear();
 
   varlen(0x1FFFFF, buf);
   CHECK(buf.size() == 3);
-  CHECK(buf.at(2) == 0xFF);
+  CHECK(buf.at(0) == 0xFF);
   CHECK(buf.at(1) == 0xFF);
-  CHECK(buf.at(0) == 0x7F);
+  CHECK(buf.at(2) == 0x7F);
   buf.clear();
 
   varlen(0x200000, buf);
   CHECK(buf.size() == 4);
-  CHECK(buf.at(3) == 0x81);
-  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(0) == 0x81);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(3) == 0x00);
   buf.clear();
 
   varlen(0x8000000, buf);
   CHECK(buf.size() == 4);
-  CHECK(buf.at(3) == 0xC0);
-  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(0) == 0xC0);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(3) == 0x00);
   buf.clear();
 
   varlen(0xFFFFFFF, buf);
   CHECK(buf.size() == 4);
-  CHECK(buf.at(3) == 0xFF);
-  CHECK(buf.at(2) == 0xFF);
+  CHECK(buf.at(0) == 0xFF);
   CHECK(buf.at(1) == 0xFF);
-  CHECK(buf.at(0) == 0x7F);
+  CHECK(buf.at(2) == 0xFF);
+  CHECK(buf.at(3) == 0x7F);
   buf.clear();
 }
 

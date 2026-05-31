@@ -60,6 +60,7 @@ public:
 
   void set_instrument(Instrument instrument) {
     _current.instrument = instrument;
+    _consumer.change_instrument(_channel, instrument);
   }
   void set_octave(Octave octave) { _current.octave = octave; }
   void set_volume(Volume volume) { _current.volume = volume; }

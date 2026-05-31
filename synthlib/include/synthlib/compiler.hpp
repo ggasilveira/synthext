@@ -3,6 +3,7 @@
 #include "synthlib/event_consumer.hpp"
 #include "synthlib/voice_manager.hpp"
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -42,7 +43,7 @@ private:
 /// class.
 class Compiler {
 public:
-  using Voiceline = std::vector<Command>;
+  using Voiceline = std::vector<std::shared_ptr<ICommand>>;
 
   /// Creates a new compiler.
   Compiler();
@@ -62,7 +63,8 @@ public:
 
 private:
   static constexpr int _ascii_size = 256;
-  using Mapping = std::array<Command, _ascii_size>;
+  void build_map();
+  using Mapping = std::array<std::shared_ptr<ICommand>, _ascii_size>;
   /// The mapping from character -> Command.
   Mapping map;
 };
