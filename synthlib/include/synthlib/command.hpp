@@ -4,6 +4,7 @@
 #include "synthlib/event_consumer.hpp"
 #include "synthlib/instrument.hpp"
 #include "synthlib/primitives.hpp"
+#include "synthlib/voice_manager.hpp"
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -24,96 +25,167 @@ enum class CommandKind : uint8_t {
   IncreaseInstrument
 };
 
-/// Context passed for command execution
+/// Context passed for command execution.
+/// This context is supposed to live for ONE voice line only,
+/// so you need to recreate the context for every line to be processed.
 class CommandContext {
 public:
+  /// Creates a new CommandContext to process a SINGLE voice line.
+  /// @param consumer the event consumer
+  /// @param bpm_manager the bpm manager to send bpm change events
+  /// @param channel the voice channel
+  /// @param voice_params the initial voice parameters
   CommandContext(IEventConsumer &consumer, BpmManager &bpm_manager,
-                 Channel channel, Instrument instr, Octave octave,
-                 Volume volume)
+                 Channel channel, VoiceParams voice_params)
       : _consumer(consumer), _bpm_manager(bpm_manager), _channel(channel),
-        instrument(instr), octave(octave), volume(volume),
-        last_note(std::nullopt) {}
+        _initial(voice_params), _current(voice_params),
+        _last_note(std::nullopt) {}
 
   IEventConsumer &consumer() { return _consumer; }
   BpmManager &bpm_manager() { return _bpm_manager; }
-  Channel channel() { return _channel; }
 
-  Instrument instrument;
-  Octave octave;
-  Volume volume;
-  std::optional<Note> last_note;
+  Channel channel() const { return _channel; }
+
+  Instrument instrument() const { return _current.instrument; }
+  Instrument initial_instrument() const { return _initial.instrument; }
+
+  Octave octave() const { return _current.octave; }
+  Octave initial_octave() const { return _initial.octave; }
+
+  Volume volume() const { return _current.volume; }
+  Volume initial_volume() const { return _initial.volume; }
+
+  std::optional<Note> last_note() const { return _last_note; }
+  unsigned int current_beat() const { return _current_beat; }
+
+  void set_instrument(Instrument instrument) {
+    _current.instrument = instrument;
+  }
+  void set_octave(Octave octave) { _current.octave = octave; }
+  void set_volume(Volume volume) { _current.volume = volume; }
+
+  void set_last_note(std::optional<Note> note) { _last_note = note; }
+  void advance_beats(unsigned int beats) { _current_beat += beats; }
 
 private:
   /// The event consumer
   IEventConsumer &_consumer;
   BpmManager &_bpm_manager;
   Channel _channel;
+  VoiceParams _initial;
+  VoiceParams _current;
+  std::optional<Note> _last_note;
+  unsigned int _current_beat = 0;
 };
 
 /// Interface for commands to execute different actions
 class ICommand {
 public:
   virtual ~ICommand() {}
+
   /// Execute the command using the execution context.
   /// @param ctx the command execution context
-  virtual void execute(CommandContext &ctx) = 0;
+  void execute(CommandContext &ctx) {
+    _execute(ctx);
+    ctx.set_last_note(note_played(ctx));
+    ctx.advance_beats(beats_taken());
+  }
   /// Returns the number of beats taken to execute the command.
   /// @return number of beats taken by the command
-  virtual unsigned int beats_taken() { return 0; }
+  virtual unsigned int beats_taken() const { return 0; }
 
   /// Returns true if this command was a note playing command
-  virtual bool plays_note() { return false; }
+  virtual std::optional<Note> note_played(const CommandContext &ctx) const {
+    return std::nullopt;
+  }
+
+protected:
+  /// Execute the command using the execution context.
+  /// This method is the one subclasses must override.
+  /// @param ctx the command execution context
+  virtual void _execute(CommandContext &ctx) = 0;
 };
 
+/// Pauses the execution for n beats
 class Pause : public ICommand {
-  unsigned int _beats;
-
 public:
   Pause(int beats) : _beats(beats) {}
-  void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
+  unsigned int beats_taken() const override;
+
+private:
+  unsigned int _beats;
+  void _execute(CommandContext &ctx) override;
 };
 
+/// If the last command was a note, repeat the note,
+/// else pause the execution for one beat.
 class PauseOrRepeat : public ICommand {
-public:
-  void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
+private:
+  void _execute(CommandContext &ctx) override;
+  unsigned int beats_taken() const override;
+  std::optional<Note> note_played(const CommandContext &ctx) const override;
 };
 
+/// Plays a note for one beat.
 class PlayNote : public ICommand {
-  Note _note;
-
 public:
   PlayNote(Note note) : _note(note) {}
-  void execute(CommandContext &ctx) override;
-  unsigned int beats_taken() override;
-};
-class ChangeInstrument : public ICommand {
-  Instrument _instr;
+  unsigned int beats_taken() const override;
 
+private:
+  Note _note;
+  void _execute(CommandContext &ctx) override;
+  std::optional<Note> note_played(const CommandContext &ctx) const override;
+};
+
+/// Changes the voice current instrument.
+class ChangeInstrument : public ICommand {
 public:
   ChangeInstrument(Instrument instr) : _instr(instr) {}
-  void execute(CommandContext &ctx) override;
-};
-class AddOctave : public ICommand {
-  int _amount;
 
+private:
+  Instrument _instr;
+  void _execute(CommandContext &ctx) override;
+};
+
+/// Adds a value to the MIDI value of the current instrument,
+/// returning to the default if exceeding the maximum instrument.
+class AddInstrument : public ICommand {
+public:
+  AddInstrument(int amount) : _amount(amount) {}
+
+private:
+  int _amount;
+  void _execute(CommandContext &ctx) override;
+};
+
+/// Adds a value to the current voice octave,
+/// returning to the default if exceeding the maximum
+/// octave.
+class AddOctave : public ICommand {
 public:
   AddOctave(int amount) : _amount(amount) {}
-  void execute(CommandContext &ctx) override;
+
+private:
+  int _amount;
+  void _execute(CommandContext &ctx) override;
 };
 
+/// Adds a value to the global BPM.
 class AddBpm : public ICommand {
-  int _amount;
-
 public:
   AddBpm(int amount) : _amount(amount) {}
-  void execute(CommandContext &ctx) override;
+
+private:
+  int _amount;
+  void _execute(CommandContext &ctx) override;
 };
 
+/// Doubles the voice volume, saturating if the maximum
+/// was reached.
 class DoubleVolume : public ICommand {
-public:
-  void execute(CommandContext &ctx) override;
+private:
+  void _execute(CommandContext &ctx) override;
 };
 
 /// A synthext command. Some commands have associated values.

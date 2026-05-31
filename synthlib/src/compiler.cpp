@@ -3,11 +3,9 @@
 #include "synthlib/command.hpp"
 #include "synthlib/event_consumer.hpp"
 #include <array>
-#include <fstream>
 #include <iostream>
 #include <regex>
 #include <sstream>
-#include <stdexcept>
 #include <variant>
 #include <vector>
 

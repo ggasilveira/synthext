@@ -42,16 +42,15 @@ private:
 /// class.
 class Compiler {
 public:
-  using Mapping = std::array<Command, 256>;
   using Voiceline = std::vector<Command>;
 
   /// Creates a new compiler.
   Compiler();
 
-  /// Compiles Synthext source into a MIDI file.
+  /// Compiles Synthext source and send MIDI events to consumer.
+  /// @param consumer the MIDI event consumer
   /// @param voice_params the voices configuration
   /// @param source the Synthext language source text
-  /// @return the MIDI file as a byte vector
   /// @throw CompilerError if there was any compilation error
   void compile(IEventConsumer &consumer, const VoiceManager &voice_params,
                std::string source) const;
@@ -62,6 +61,8 @@ public:
   Voiceline compile_line(const std::string &line) const;
 
 private:
+  static constexpr int _ascii_size = 256;
+  using Mapping = std::array<Command, _ascii_size>;
   /// The mapping from character -> Command.
   Mapping map;
 };

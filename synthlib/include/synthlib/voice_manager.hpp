@@ -6,6 +6,13 @@
 
 namespace synthlib {
 
+/// Contains the parameters for a given voice
+struct VoiceParams {
+  Volume volume;
+  Octave octave;
+  Instrument instrument;
+};
+
 /// This class is responsible for setting
 /// the voices initial parameters. Voices
 /// without any overrides will have default
@@ -65,6 +72,11 @@ public:
   /// Gets the starting bpm
   /// @return The starting bpm
   Bpm get_bpm() const;
+
+  /// Gets the current parameters for a given voice.
+  /// @param voice the voice number
+  /// @return the voice's parameters
+  VoiceParams get_voice_params(VoiceId voice) const;
 
 private:
   std::map<VoiceId, Volume> volume_overrides;
