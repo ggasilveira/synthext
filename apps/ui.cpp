@@ -14,6 +14,13 @@
 #include <string_view>
 #include <iterator>
 
+#define WIDTH 600
+#define HEIGHT 400
+#define HORIZONTAL_POSITION 10
+#define VERTICAL_POSITION 10
+#define TEXT_WIDTH 580
+#define TEXT_HEIGHT 380
+
 // forward declarations for helpers defined later in this file
 static bool choose_file(Fl_Native_File_Chooser::Type type,
                         std::string &out_filename,
@@ -126,10 +133,10 @@ void SynthApp::on_show_info(Fl_Widget *widget) {
   }
   std::string content((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
 
-  auto *info_win = new Fl_Double_Window(600, 400, "Synthext — How to Use");
+  auto *info_win = new Fl_Double_Window(WIDTH, HEIGHT, "Synthext — How to Use");
   info_win->begin();
   auto *buf = new Fl_Text_Buffer();
-  auto *disp = new Fl_Text_Display(10, 10, 580, 380);
+  auto *disp = new Fl_Text_Display(HORIZONTAL_POSITION, VERTICAL_POSITION, TEXT_WIDTH, TEXT_HEIGHT);
   disp->buffer(buf);
   buf->text(content.c_str());
   info_win->end();
