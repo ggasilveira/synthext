@@ -6,6 +6,12 @@
 #include <cstdio>
 #include <iostream>
 
+#define BUFFER_SIZE 100
+#define WIDGET_HEIGHT_STANDARD 30
+#define PLAYBACK_FRAME_HEIGHT 30
+#define LAYOUT_GAP 30
+#define LAYOUT_MARGIN 20
+
 void instrument_fullname(Instrument instr, char *buffer, int buflen) {
   snprintf(buffer, buflen, "%s/%s", instr.group_name(), instr.name());
 }
@@ -26,18 +32,18 @@ int userdata2midi(void *userdata) {
 // NOLINTEND
 
 void add_instruments(Fl_Choice &instrs) {
-  char buffer[100];
+  char buffer[BUFFER_SIZE];
   for (size_t midi = Instrument::MIDI_MIN; midi <= Instrument::MIDI_MAX;
        ++midi) {
     Instrument instr(midi);
-    instrument_fullname(instr, buffer, 100);
+    instrument_fullname(instr, buffer, BUFFER_SIZE);
     instrs.add(buffer, 0, nullptr, midi2userdata(instr));
   }
 }
 void add_voices(Fl_Choice &voices) {
-  char buffer[100];
+  char buffer[BUFFER_SIZE];
   for (int v_id = VoiceId::MIN; v_id <= VoiceId::MAX; ++v_id) {
-    snprintf(buffer, 100, "Voice %d", v_id);
+    snprintf(buffer, BUFFER_SIZE, "Voice %d", v_id);
     voices.add(buffer);
   }
 }
@@ -96,36 +102,36 @@ void Controls::build() {
   bpm_slider->precision(0);
   bpm_slider->value(Bpm::DEFAULT);
   FL_METHOD_CALLBACK_0(bpm_slider, Controls, this, set_bpm);
-  flex->fixed(bpm_slider, 30);
+  flex->fixed(bpm_slider, WIDGET_HEIGHT_STANDARD);
 
   curr_voice = new Fl_Choice(0, 0, 0, 0, "Voice");
   add_voices(*curr_voice);
   curr_voice->align(FL_ALIGN_BOTTOM);
   FL_METHOD_CALLBACK_0(curr_voice, Controls, this, select_voice);
-  flex->fixed(curr_voice, 30);
+  flex->fixed(curr_voice, WIDGET_HEIGHT_STANDARD);
 
   volume_slider = new Fl_Value_Slider(0, 0, 0, 0, "Volume");
   volume_slider->type(FL_HOR_NICE_SLIDER);
   volume_slider->bounds(Volume::MIN, Volume::MAX);
   volume_slider->precision(0);
   FL_METHOD_CALLBACK_0(volume_slider, Controls, this, set_volume);
-  flex->fixed(volume_slider, 30);
+  flex->fixed(volume_slider, WIDGET_HEIGHT_STANDARD);
 
   octave_counter = new Fl_Counter(0, 0, 0, 0, "Octave");
   octave_counter->bounds(Octave::MIN, Octave::MAX);
   octave_counter->precision(0);
   FL_METHOD_CALLBACK_0(octave_counter, Controls, this, set_octave);
-  flex->fixed(octave_counter, 30);
+  flex->fixed(octave_counter, WIDGET_HEIGHT_STANDARD);
 
   instruments = new Fl_Choice(0, 0, 0, 0, "Instrument");
   add_instruments(*instruments);
   instruments->align(FL_ALIGN_BOTTOM);
   FL_METHOD_CALLBACK_0(instruments, Controls, this, set_instrument);
-  flex->fixed(instruments, 30);
+  flex->fixed(instruments, WIDGET_HEIGHT_STANDARD);
 
   auto *reset_voice_btn = new Fl_Button(0, 0, 0, 0, "Reset Voice");
   FL_METHOD_CALLBACK_0(reset_voice_btn, Controls, this, reset_voice);
-  flex->fixed(reset_voice_btn, 30);
+  flex->fixed(reset_voice_btn, WIDGET_HEIGHT_STANDARD);
 
   auto *playback_frame = new Fl_Flex(0, 0, 0, 0, Fl_Flex::ROW);
   play_button = new Fl_Button(0, 0, 0, 0, "Play");
@@ -134,13 +140,13 @@ void Controls::build() {
   FL_METHOD_CALLBACK_0(stop_button, Controls, this, call_stop);
 
   playback_frame->end();
-  flex->fixed(playback_frame, 50);
+  flex->fixed(playback_frame, PLAYBACK_FRAME_HEIGHT);
 
   space = new Fl_Box(0, 0, 0, 0);
 
   flex->resizable(space);
-  flex->gap(30);
-  flex->margin(20);
+  flex->gap(LAYOUT_GAP);
+  flex->margin(LAYOUT_MARGIN);
 
   flex->end();
 
