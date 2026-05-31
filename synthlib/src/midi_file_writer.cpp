@@ -11,6 +11,15 @@ const uint8_t PROG_CHANGE = 0xC;
 const uint8_t CHANNEL_MODE = 0xB;
 
 constexpr uint32_t VARLEN_MAX = 0x0FFFFFFF;
+constexpr uint8_t MIDI_DATA_BIT_OFF = 0x80;
+
+void assert_cond(bool condition, const char *msg) {
+  if (!condition) {
+    std::string s = "failed assertion: ";
+    s += msg;
+    throw std::runtime_error(s);
+  }
+}
 
 // NOLINTBEGIN
 /// Writes 32bit number as Variable Length Quantity in the buffer.
@@ -74,9 +83,11 @@ uint8_t note2midi(Note note, Octave octave) {
 void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
                 uint8_t data1, uint8_t data2, std::vector<uint8_t> &buf) {
 
-  // data bytes must have the most significant bit deasserted
-  // CHECK((data1 & 0x80) == 0);
-  // CHECK((data2 & 0x80) == 0);
+  assert_cond((data1 & MIDI_DATA_BIT_OFF) == 0,
+              "data bytes must have the most significant bit deasserted");
+  assert_cond((data2 & MIDI_DATA_BIT_OFF) == 0,
+              "data bytes must have the most significant bit deasserted");
+
   varlen(delta_time, buf);
   buf.push_back(make_status(event, channel));
   buf.push_back(data1);
@@ -92,8 +103,8 @@ void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
   varlen(delta_time, buf);
   buf.push_back(make_status(event, channel));
 
-  // data bytes must have the most significant bit deasserted
-  // CHECK((data1 & 0x80) == 0);
+  assert_cond((data1 & MIDI_DATA_BIT_OFF) == 0,
+              "data bytes must have the most significant bit deasserted");
 
   buf.push_back(data1);
   spdlog::debug("MIDI (channel={}, delta={}, event={}, data1={})",
@@ -106,7 +117,6 @@ void end_of_track(uint32_t delta_time, std::vector<uint8_t> &buf) {
   for (auto b : eot) {
     buf.push_back(b);
   }
-  // spdlog::debug("End Of Track (delta_time={})", delta_time);
 }
 uint32_t bpm2tempo(Bpm bpm) {
   const uint32_t us_per_min = 60000000;
