@@ -47,29 +47,31 @@ void SynthApp::on_load_text(Fl_Widget *widget) {
     text_buffer->loadfile(filename.c_str());
   }
 }
-std::vector<uint8_t> SynthApp::compile_midi() {
-
-  return compiler.compile(controls->voice_params(), text_buffer->text());
-}
-
-void save_binary_file(std::vector<uint8_t> bytes, std::string filename) {
-  std::ofstream outfile(filename, std::ios::binary);
-  outfile.write((char *)bytes.data(), bytes.size());
-  outfile.close();
-}
 
 void show_compile_error(const CompilerError &err) {
   fl_message_title("Error compiling file");
   fl_message("%s", err.what());
 }
 
+void save_binary_file(const std::vector<uint8_t> &bytes,
+                       const std::string &filename) {
+  std::ofstream outfile(filename, std::ios::binary);
+  outfile.write((char *)bytes.data(), bytes.size());
+  outfile.close();
+}
+
 void SynthApp::on_save_midi(Fl_Widget *widget) {
-  std::string filename;
-  if (choose_file(Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
-                  filename,
-                  "Save File As...",
-                  "MIDI Files (*.mid)")) {
-    save_binary_file(compile_midi(), filename);
+  try {
+    auto midi_bytes = compile_midi();
+    std::string filename;
+    if (choose_file(Fl_Native_File_Chooser::BROWSE_SAVE_FILE,
+                    filename,
+                    "Save File As...",
+                    "MIDI Files (*.mid)")) {
+      save_binary_file(midi_bytes, filename);
+    }
+  } catch (const CompilerError &err) {
+    show_compile_error(err);
   }
 }
 
@@ -143,13 +145,16 @@ void SynthApp::on_show_info(Fl_Widget *widget) {
   info_win->show();
 }
 
+std::vector<uint8_t> SynthApp::compile_midi() {
+  return compiler.compile(controls->voice_params(), text_buffer->text());
+}
+
 void SynthApp::play_midi() {
   try {
     player.load_midi(compile_midi());
     player.seek(0);
     player.play();
-
-  } catch (CompilerError err) {
+  } catch (const CompilerError &err) {
     show_compile_error(err);
   }
 }
