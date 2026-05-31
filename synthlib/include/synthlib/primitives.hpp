@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <iostream>
 #include <stdexcept>
 
 /// this namespace contain all synthlib objects

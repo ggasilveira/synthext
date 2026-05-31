@@ -108,8 +108,6 @@ Compiler::Voiceline Compiler::compile_line(const std::string &line) const {
   auto linefix = std::regex_replace(line, Mb_pattern, Mb_s);
 
   Compiler::Voiceline comms;
-  CommandKind last = CommandKind::Pause;
-  char last_char = 0;
   string_view::size_type cursor = 0;
 
   // parse delay specifier
@@ -155,11 +153,7 @@ int voice2track(int voice) { return voice + 1; }
 void create_midi_voice(IEventConsumer &consumer, const VoiceManager &params,
                        BpmManager &bpm_man, Compiler::Voiceline &voice,
                        VoiceId voice_id, int track_num) {
-  // we need to keep count of elapsed beats to send bpm changes
-  // to the bpm manager
-  // uint32_t elapsed = 0;
-  // last command for pause or repeat
-  // Command last;
+
   Channel channel(voice_id.value());
   VoiceParams initial_params = params.get_voice_params(voice_id);
 
@@ -170,71 +164,6 @@ void create_midi_voice(IEventConsumer &consumer, const VoiceManager &params,
   for (const auto &command : voice) {
     command->execute(ctx);
   }
-
-  // for (auto command : voice) {
-  //   switch (command.kind()) {
-  //   case CommandKind::Delay:
-  //     consumer.wait_beats(command.amount());
-  //     elapsed += command.amount();
-  //     break;
-  //   case CommandKind::Pause:
-  //     consumer.wait_beats(1);
-  //     elapsed += 1;
-  //     break;
-  //   case CommandKind::PauseOrRepeat:
-  //     if (last.kind() == CommandKind::PlayNote) {
-  //       consumer.play_note(channel, last.note(), octave, volume);
-  //     } else {
-  //       consumer.wait_beats(1);
-  //     }
-  //     elapsed += 1;
-  //     break;
-  //   case CommandKind::PlayNote:
-  //     consumer.play_note(channel, command.note(), octave, volume);
-  //     elapsed += 1;
-  //     break;
-  //   case CommandKind::ChangeInstrument:
-  //     instr = command.instrument();
-  //     consumer.change_instrument(channel, instr);
-  //     break;
-  //   case CommandKind::IncreaseInstrument:
-  //     try {
-  //       instr = Instrument(instr.to_int() + command.amount());
-  //     } catch (...) {
-  //       instr = Instrument(params.get_instrument(voice_id));
-  //     }
-  //     consumer.change_instrument(channel, instr);
-  //     break;
-  //   case CommandKind::IncreaseOctave:
-  //     if (octave.value() < Octave::MAX) {
-  //       octave = Octave(octave.value() + 1);
-  //     } else {
-  //       octave = params.get_octave(voice_id);
-  //     }
-  //     break;
-  //   case CommandKind::DecreaseOctave:
-  //     if (octave.value() > Octave::MIN) {
-  //       octave = Octave(octave.value() - 1);
-  //     } else {
-  //       octave = params.get_octave(voice_id);
-  //     }
-  //     break;
-  //   case CommandKind::IncreaseBpm:
-  //     bpm_man.change_bpm(elapsed, command.amount());
-  //     break;
-  //   case CommandKind::DecreaseBpm:
-  //     bpm_man.change_bpm(elapsed, -command.amount());
-  //     break;
-  //   case CommandKind::DoubleVolume:
-  //     try {
-  //       volume = Volume(volume.value() * 2);
-  //     } catch (...) {
-  //       volume = Volume(Volume::MAX);
-  //     }
-  //     break;
-  //   }
-  // last = command;
-  //}
 }
 
 /// Transforms the list of voice lines into the midi file
@@ -270,6 +199,7 @@ void Compiler::compile(IEventConsumer &consumer,
   int line_number = 0;
   for (auto &line : lines) {
     ++line_number;
+    // skip empty lines
     if (line.empty()) {
       continue;
     }
@@ -533,12 +463,12 @@ TEST_CASE("compiling multiple voices") {
   CHECK(tr3lst.note == Note::G);
 
   /// testing track initial instruments
-  CHECK(track1.nth_event(0).as_change_instrument().instr ==
-        voices.get_instrument(0));
-  CHECK(track2.nth_event(0).as_change_instrument().instr ==
-        voices.get_instrument(1));
-  CHECK(track3.nth_event(0).as_change_instrument().instr ==
-        voices.get_instrument(2));
+  CHECK(track1.nth_event(0).as_change_instrument().instr.midi() ==
+        voices.get_instrument(0).midi());
+  CHECK(track2.nth_event(0).as_change_instrument().instr.midi() ==
+        voices.get_instrument(1).midi());
+  CHECK(track3.nth_event(0).as_change_instrument().instr.midi() ==
+        voices.get_instrument(2).midi());
 }
 
 #endif

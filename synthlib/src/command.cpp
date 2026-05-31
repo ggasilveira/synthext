@@ -2,24 +2,6 @@
 #include "spdlog/spdlog.h"
 
 namespace synthlib {
-bool operator==(const Command &lhs, const Command &rhs) {
-  if (lhs.kind() != rhs.kind()) {
-    return false;
-  }
-  switch (lhs.kind()) {
-  case CommandKind::PlayNote:
-    return lhs.note() == rhs.note();
-    break;
-  case CommandKind::Delay:
-  case CommandKind::IncreaseInstrument:
-    return lhs.amount() == rhs.amount();
-    break;
-  case CommandKind::ChangeInstrument:
-    return lhs.instrument().midi() == rhs.instrument().midi();
-  default:
-    return true;
-  }
-}
 
 unsigned int Pause::beats_taken() const { return _beats; }
 void Pause::_execute(CommandContext &ctx) { ctx.consumer().wait_beats(_beats); }
