@@ -79,7 +79,16 @@ void Controls::set_volume() {
   int vid = curr_voice->value();
   params.override_volume(vid, Volume((int)volume_slider->value()));
 }
-void Controls::set_bpm() { params.set_bpm(Bpm((int)bpm_slider->value())); }
+void Controls::set_bpm() { 
+  int visual_bpm = static_cast<int>(bpm_slider->value());
+  
+  // guard clause to avoid division by zero crashes
+  if(visual_bpm < 1){
+    visual_bpm = 1;
+    }
+    
+  params.set_bpm(Bpm(visual_bpm));
+}
 
 void Controls::call_play() {
   if (play_cb) {
@@ -98,7 +107,7 @@ void Controls::build() {
 
   bpm_slider = new Fl_Value_Slider(0, 0, 0, 0, "Initial BPM");
   bpm_slider->type(FL_HOR_NICE_SLIDER);
-  bpm_slider->bounds(Bpm::MIN, Bpm::MAX);
+  bpm_slider->bounds(1, Bpm::MAX); //bpm::MIN is zero, so it might cause a bug ("something" / 0)
   bpm_slider->precision(0);
   bpm_slider->value(Bpm::DEFAULT);
   FL_METHOD_CALLBACK_0(bpm_slider, Controls, this, set_bpm);
