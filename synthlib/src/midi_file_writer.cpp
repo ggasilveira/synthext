@@ -1,6 +1,5 @@
-#include "synthlib/midi_creator.hpp"
+#include "synthlib/midi_file_writer.hpp"
 #include <array>
-#include <cstdio>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
@@ -11,15 +10,48 @@ const uint8_t NOTE_ON = 0x9;
 const uint8_t PROG_CHANGE = 0xC;
 const uint8_t CHANNEL_MODE = 0xB;
 
+constexpr uint32_t VARLEN_MAX = 0x0FFFFFFF;
+constexpr uint8_t MIDI_DATA_BIT_OFF = 0x80;
+
+void assert_cond(bool condition, const char *msg) {
+  if (!condition) {
+    std::string s = "failed assertion: ";
+    s += msg;
+    throw std::runtime_error(s);
+  }
+}
+
 // NOLINTBEGIN
+/// Writes 32bit number as Variable Length Quantity in the buffer.
+/// Each byte contains 7 bits of information, and the most significant
+/// is clear for the last byte and set for all others. Representation
+/// is big-endian.
 void varlen(uint32_t number, std::vector<uint8_t> &buf) {
-  uint8_t bits7 = number & 0x7F;
-  number >>= 7;
-  buf.push_back(bits7);
+  const int info_bits_per_byte = 7;
+  const uint8_t info_bits_mask = 0x7f;
+  const uint8_t not_last_byte_bit = 0x80;
+
+  if (number > VARLEN_MAX) {
+    throw std::invalid_argument("number exceeded maximum varlen value");
+  }
+
+  std::array<uint8_t, 4> byte_buf = {0};
+  int buflen = 0;
+  uint8_t bits7 = number & info_bits_mask;
+
+  number >>= info_bits_per_byte;
+  byte_buf.at(buflen++) = bits7;
+
   while (number != 0) {
-    bits7 = number & 0x7F | 0x80;
-    number >>= 7;
-    buf.push_back(bits7);
+    bits7 = number & info_bits_mask | not_last_byte_bit;
+    number >>= info_bits_per_byte;
+    byte_buf.at(buflen++) = bits7;
+    // buf.push_back(bits7);
+    // spdlog::debug("varlen wrote: {}", bits7);
+  }
+  for (int i = buflen - 1; i >= 0; --i) {
+    buf.push_back(byte_buf.at(i));
+    spdlog::debug("varlen wrote: {}", byte_buf.at(i));
   }
 }
 
@@ -51,9 +83,11 @@ uint8_t note2midi(Note note, Octave octave) {
 void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
                 uint8_t data1, uint8_t data2, std::vector<uint8_t> &buf) {
 
-  // data bytes must have the most significant bit deasserted
-  // CHECK((data1 & 0x80) == 0);
-  // CHECK((data2 & 0x80) == 0);
+  assert_cond((data1 & MIDI_DATA_BIT_OFF) == 0,
+              "data bytes must have the most significant bit deasserted");
+  assert_cond((data2 & MIDI_DATA_BIT_OFF) == 0,
+              "data bytes must have the most significant bit deasserted");
+
   varlen(delta_time, buf);
   buf.push_back(make_status(event, channel));
   buf.push_back(data1);
@@ -69,8 +103,8 @@ void midi_event(uint32_t delta_time, uint8_t event, Channel channel,
   varlen(delta_time, buf);
   buf.push_back(make_status(event, channel));
 
-  // data bytes must have the most significant bit deasserted
-  // CHECK((data1 & 0x80) == 0);
+  assert_cond((data1 & MIDI_DATA_BIT_OFF) == 0,
+              "data bytes must have the most significant bit deasserted");
 
   buf.push_back(data1);
   spdlog::debug("MIDI (channel={}, delta={}, event={}, data1={})",
@@ -83,7 +117,6 @@ void end_of_track(uint32_t delta_time, std::vector<uint8_t> &buf) {
   for (auto b : eot) {
     buf.push_back(b);
   }
-  // spdlog::debug("End Of Track (delta_time={})", delta_time);
 }
 uint32_t bpm2tempo(Bpm bpm) {
   const uint32_t us_per_min = 60000000;
@@ -130,40 +163,35 @@ void prog_change(uint32_t delta_time, Channel channel, Instrument instr,
   midi_event(delta_time, PROG_CHANGE, channel, instr.to_int(), buf);
 }
 
-void MidiCreator::goto_track(int track_num) {
+void MidifileConsumer::change_track(unsigned int track_num) {
   if (track_num >= tracks.size()) {
     tracks.resize(track_num + 1);
   }
   curr_track = track_num;
   spdlog::debug("Track Change (track={})", track_num);
 }
-void MidiCreator::play_note(Channel channel, Note note, Octave octave,
-                            Volume volume) {
+void MidifileConsumer::play_note(Channel channel, Note note, Octave octave,
+                                 Volume volume) {
   Track &track = tracks.at(curr_track);
   note_on(track.delta, channel, note, octave, volume, track.buf);
   note_off(beat_ticks, channel, note, octave, volume, track.buf);
   track.delta = 0;
 }
 
-void MidiCreator::pause_beats(uint32_t n) {
+void MidifileConsumer::wait_beats(unsigned int n) {
   Track &track = tracks.at(curr_track);
   track.delta += beat_ticks * n;
   spdlog::debug("paused {} beats. delta is {}", n, track.delta);
 }
-void MidiCreator::pause_ticks(uint32_t n) {
-  Track &track = tracks.at(curr_track);
-  track.delta += n;
-  spdlog::debug("paused {} ticks", n);
-}
 
-void MidiCreator::change_instrument(Channel channel, Instrument instr) {
+void MidifileConsumer::change_instrument(Channel channel, Instrument instr) {
   Track &track = tracks.at(curr_track);
   prog_change(track.delta, channel, instr, track.buf);
   // we already advanced the delta cursor, so we zero it
   // as we want the next event to play immediately
   track.delta = 0;
 }
-void MidiCreator::set_bpm(Bpm bpm) {
+void MidifileConsumer::set_bpm(Bpm bpm) {
   Track &track = tracks.at(curr_track);
   set_tempo(track.delta, bpm, track.buf);
   spdlog::debug("set BPM (track={}, delta={}, bpm={})", curr_track, track.delta,
@@ -174,7 +202,7 @@ void MidiCreator::set_bpm(Bpm bpm) {
   track.delta = 0;
 }
 
-void MidiCreator::write_header(std::vector<uint8_t> &buf) {
+void MidifileConsumer::write_header(std::vector<uint8_t> &buf) {
   const uint8_t header_len = 6;
   const uint8_t header_format_multitrack = 1;
   // chunk-type
@@ -199,7 +227,7 @@ void MidiCreator::write_header(std::vector<uint8_t> &buf) {
   buf.push_back(0);
   buf.push_back(beat_ticks);
 }
-void MidiCreator::write_track(std::vector<uint8_t> &buf, int track) {
+void MidifileConsumer::write_track(std::vector<uint8_t> &buf, int track) {
   Track &trk = tracks.at(track);
 
   // we'll add the End Of Track event temporarily
@@ -220,7 +248,7 @@ void MidiCreator::write_track(std::vector<uint8_t> &buf, int track) {
   trk.buf.resize(trk_len_before);
 }
 
-std::vector<uint8_t> MidiCreator::generate_file() {
+std::vector<uint8_t> MidifileConsumer::generate_file() {
   std::vector<uint8_t> buf;
   write_header(buf);
   for (int i = 0; i < tracks.size(); ++i) {
@@ -258,65 +286,65 @@ TEST_CASE("variable length quantity") {
 
   varlen(0x80, buf);
   CHECK(buf.size() == 2);
-  CHECK(buf.at(1) == 0x81);
-  CHECK(buf.at(0) == 0);
+  CHECK(buf.at(0) == 0x81);
+  CHECK(buf.at(1) == 0);
   buf.clear();
 
   varlen(0x2000, buf);
   CHECK(buf.size() == 2);
-  CHECK(buf.at(1) == 0xC0);
-  CHECK(buf.at(0) == 0);
+  CHECK(buf.at(0) == 0xC0);
+  CHECK(buf.at(1) == 0);
   buf.clear();
 
   varlen(0x3FFF, buf);
   CHECK(buf.size() == 2);
-  CHECK(buf.at(1) == 0xFF);
-  CHECK(buf.at(0) == 0x7F);
+  CHECK(buf.at(0) == 0xFF);
+  CHECK(buf.at(1) == 0x7F);
   buf.clear();
 
   varlen(0x4000, buf);
   CHECK(buf.size() == 3);
-  CHECK(buf.at(2) == 0x81);
+  CHECK(buf.at(0) == 0x81);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x00);
   buf.clear();
 
   varlen(0x100000, buf);
   CHECK(buf.size() == 3);
-  CHECK(buf.at(2) == 0xC0);
+  CHECK(buf.at(0) == 0xC0);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x00);
   buf.clear();
 
   varlen(0x1FFFFF, buf);
   CHECK(buf.size() == 3);
-  CHECK(buf.at(2) == 0xFF);
+  CHECK(buf.at(0) == 0xFF);
   CHECK(buf.at(1) == 0xFF);
-  CHECK(buf.at(0) == 0x7F);
+  CHECK(buf.at(2) == 0x7F);
   buf.clear();
 
   varlen(0x200000, buf);
   CHECK(buf.size() == 4);
-  CHECK(buf.at(3) == 0x81);
-  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(0) == 0x81);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(3) == 0x00);
   buf.clear();
 
   varlen(0x8000000, buf);
   CHECK(buf.size() == 4);
-  CHECK(buf.at(3) == 0xC0);
-  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(0) == 0xC0);
   CHECK(buf.at(1) == 0x80);
-  CHECK(buf.at(0) == 0x00);
+  CHECK(buf.at(2) == 0x80);
+  CHECK(buf.at(3) == 0x00);
   buf.clear();
 
   varlen(0xFFFFFFF, buf);
   CHECK(buf.size() == 4);
-  CHECK(buf.at(3) == 0xFF);
-  CHECK(buf.at(2) == 0xFF);
+  CHECK(buf.at(0) == 0xFF);
   CHECK(buf.at(1) == 0xFF);
-  CHECK(buf.at(0) == 0x7F);
+  CHECK(buf.at(2) == 0xFF);
+  CHECK(buf.at(3) == 0x7F);
   buf.clear();
 }
 

@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <iostream>
 #include <stdexcept>
 
 /// this namespace contain all synthlib objects
@@ -13,8 +12,8 @@ static constexpr int CHANNEL_MIN = 0;
 static constexpr int CHANNEL_MAX = 15;
 static constexpr int CHANNEL_INITIAL = 0;
 
-static constexpr int BPM_MIN = 0;
-static constexpr int BPM_MAX = 400;
+static constexpr int BPM_MIN = 1;
+static constexpr int BPM_MAX = 500;
 static constexpr int BPM_INITIAL = 120;
 
 static constexpr int OCTAVE_MIN = 0;

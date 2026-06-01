@@ -1,5 +1,6 @@
 #include "ui.hpp"
 #include "synthlib/compiler.hpp"
+#include "synthlib/midi_file_writer.hpp"
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Flex.H>
 #include <FL/Fl_Native_File_Chooser.H>
@@ -40,6 +41,13 @@ void SynthApp::on_load_text(Fl_Widget *widget) {
                   "Text Files (*.txt)")) {
     text_buffer->loadfile(filename.c_str());
   }
+}
+std::vector<uint8_t> SynthApp::compile_midi() {
+  // we need ticks per beat = 8 to avoid notes delaying after bpm change
+  constexpr int ticks_per_beat = 8;
+  MidifileConsumer consumer(ticks_per_beat);
+  compiler.compile(consumer, controls->voice_params(), text_buffer->text());
+  return consumer.generate_file();
 }
 
 void show_compile_error(const CompilerError &err) {

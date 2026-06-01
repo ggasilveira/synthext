@@ -1,5 +1,5 @@
 #pragma once
-#include "synthlib/midi_creator.hpp"
+#include "synthlib/event_consumer.hpp"
 #include "synthlib/primitives.hpp"
 #include <vector>
 
@@ -27,10 +27,10 @@ public:
   /// Issues a bpm change in absolute time.
   /// @param beats the song beat in which the change occurs
   /// @param delta the value to add to the burrent bpm
-  void change_bpm(uint32_t beats, int delta);
+  void change_bpm(unsigned int beats, int delta);
   /// Writes all bpm changes to the track, synchronized
   /// and ordered.
-  void write_bpm_track(MidiCreator &creator, int track_n);
+  void write_bpm_track(IEventConsumer &consumer, int track_number);
 
 private:
   Bpm initial_bpm;

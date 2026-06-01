@@ -4,7 +4,7 @@ find_package(spdlog CONFIG REQUIRED)
 set(SOURCE_FILES
   src/instrument.cpp
   src/voice_manager.cpp
-  src/midi_creator.cpp
+  src/midi_file_writer.cpp
   src/compiler.cpp
   src/bpm_manager.cpp
   src/command.cpp

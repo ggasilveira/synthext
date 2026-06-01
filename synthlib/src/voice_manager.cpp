@@ -43,6 +43,14 @@ Octave VoiceManager::get_octave(VoiceId voice) const {
   }
 }
 
+VoiceParams VoiceManager::get_voice_params(VoiceId voice) const {
+  VoiceParams voice_params;
+  voice_params.instrument = get_instrument(voice);
+  voice_params.volume = get_volume(voice);
+  voice_params.octave = get_octave(voice);
+  return voice_params;
+}
+
 Instrument VoiceManager::get_instrument(VoiceId voice) const {
   try {
     return instrument_overrides.at(voice);

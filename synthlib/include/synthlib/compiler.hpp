@@ -1,7 +1,9 @@
 #pragma once
 #include "synthlib/command.hpp"
+#include "synthlib/event_consumer.hpp"
 #include "synthlib/voice_manager.hpp"
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -41,30 +43,28 @@ private:
 /// class.
 class Compiler {
 public:
-  using Mapping = std::array<Command, 256>;
-  using Voiceline = std::vector<Command>;
+  using Voiceline = std::vector<std::shared_ptr<ICommand>>;
 
   /// Creates a new compiler.
   Compiler();
 
-  /// Compiles Synthext source into a MIDI file.
+  /// Compiles Synthext source and send MIDI events to consumer.
+  /// @param consumer the MIDI event consumer
   /// @param voice_params the voices configuration
   /// @param source the Synthext language source text
-  /// @return the MIDI file as a byte vector
-  std::vector<uint8_t> compile(const VoiceManager &voice_params,
-                               std::string source) const;
-  /// Compiles Synthext source and writes to a MIDI file.
-  /// @param voice_params the voices configuration
-  /// @param source the Synthext language source text
-  /// @param filename the filename to write the MIDI to
-  void compile_to_file(const VoiceManager &voice_params, std::string source,
-                       std::string filename) const;
+  /// @throw CompilerError if there was any compilation error
+  void compile(IEventConsumer &consumer, const VoiceManager &voice_params,
+               std::string source) const;
+
   /// Compiles a Synthext voice into a sequece of commands
   /// @param line the voice line
   /// @return A compiled vector of commands
   Voiceline compile_line(const std::string &line) const;
 
 private:
+  static constexpr int _ascii_size = 256;
+  void build_map();
+  using Mapping = std::array<std::shared_ptr<ICommand>, _ascii_size>;
   /// The mapping from character -> Command.
   Mapping map;
 };
