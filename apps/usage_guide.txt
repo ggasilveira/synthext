@@ -1,0 +1,95 @@
+* Notes
+
+Characters A-H and Mb play notes:
+
+| Text | Action       |
+|------+--------------|
+| A    | Play note A  |
+| B    | Play note B  |
+| C    | Play note C  |
+| D    | Play note D  |
+| E    | Play note E  |
+| F    | Play note F  |
+| G    | Play Note G  |
+| H    | Play Note Bb |
+| Mb   | Play Note Eb |
+
+
+
+* Pauses
+
+Characters a-h play pauses. Be careful in that if the character 'b'
+comes before a character 'M', it will be parsed as a note command
+(Mb).
+
+| Text | Action             |
+|------+--------------------|
+| a-h  | Pause for one beat |
+
+
+
+* Volume
+
+The space character doubles the voice volume, saturating if the
+maximum volume is reached.
+
+| Text    | Action                      |
+|---------+-----------------------------|
+| <space> | doubles or maxes out volume |
+
+
+
+* Instruments
+
+The following characters assign a specific instrument to the voice.
+The even digits have a special command: take the sum of the current
+instrument's MIDI value and the digit and assign the resulting
+instrument to the voice.
+
+| Text       | Action                                |
+|------------+---------------------------------------|
+| '!'        | Change to Harmonica (GM #23)          |
+| ';'        | Change to Tubular Bells (GM #15)      |
+| ','        | Change to Church Organ (GM #20)       |
+| odd digit  | Change to Tubular Bells (GM #15)      |
+| even digit | Change to GM #(current + digit value) |
+
+
+
+* Octaves
+
+The following characters increase or decrease the octave by one.  If
+the octave exceeds the maximum or minimum octave, return to the
+default octave for the voice.
+
+| Text | Action          |
+|------+-----------------|
+| '?'  | Increase octave |
+| 'V'  | Decrease octave |
+
+
+
+* BPM
+
+The characters '<' and '>' decrease and increase the global BPM by 10
+beats, respectively.
+
+| Text | Action             |
+|------+--------------------|
+| '<'  | Decrease BPM by 10 |
+| '>'  | Increase BPM by 10 |
+
+
+
+* Repeat
+
+The following characters's action depend on if the last command was a
+note or not: if the last command played was a note, repeat that note;
+else, play a silence beat.
+
+| Text                              | Action            |
+|-----------------------------------+-------------------|
+| non-note and non-pause consonants | repeat or silence |
+| 'O', 'I', 'U'                     | repeat or silence |
+| remaining characters              | repeat or silence |
+

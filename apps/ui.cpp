@@ -20,6 +20,8 @@
 #define TEXT_WIDTH 580
 #define TEXT_HEIGHT 380
 
+#include "usage_guide.hpp"
+
 // forward declarations for helpers defined later in this file
 static bool choose_file(Fl_Native_File_Chooser::Type type,
                         std::string &out_filename, const char *title,
@@ -74,31 +76,38 @@ void SynthApp::on_save_midi(Fl_Widget *widget) {
     show_compile_error(err);
   }
 }
+void SynthApp::on_main_window_close(Fl_Widget *widget) {
+  if (info_window) {
+    info_window->hide();
+  }
+  main_window->hide();
+}
+void SynthApp::build(Fl_Window *window) {
+  main_window = window;
+  main_window->begin();
 
-void SynthApp::build(Fl_Window &window) {
-  window.begin();
+  build_menu_bar();
+  build_main_frame();
 
-  build_menu_bar(window);
-  build_main_frame(window);
-
-  window.resizable(frame);
-  window.end();
+  main_window->resizable(frame);
+  main_window->end();
+  main_window->callback(on_main_window_close_cb, this);
 
   build_playback();
 }
 
-void SynthApp::build_menu_bar(Fl_Window &window) {
-  menu_bar = new Fl_Menu_Bar(0, 0, window.w(), MENU_BAR_HEIGHT);
+void SynthApp::build_menu_bar() {
+  menu_bar = new Fl_Menu_Bar(0, 0, main_window->w(), MENU_BAR_HEIGHT);
   menu_bar->add("File/Load Text", 0, SynthApp::on_load_text_cb, this);
   menu_bar->add("File/Save Text", 0, SynthApp::on_save_text_cb, this);
   menu_bar->add("File/Save MIDI", 0, SynthApp::on_save_midi_cb, this);
-  menu_bar->add("info/How to Use", 0, SynthApp::on_show_info_cb, this);
+  menu_bar->add("Help/Usage Guide", 0, SynthApp::on_show_info_cb, this);
 }
 
-void SynthApp::build_main_frame(Fl_Window &window) {
+void SynthApp::build_main_frame() {
+  auto &win = *main_window;
   int frame_y = menu_bar->h();
-  frame =
-      new Fl_Flex(0, frame_y, window.w(), window.h() - frame_y, Fl_Flex::ROW);
+  frame = new Fl_Flex(0, frame_y, win.w(), win.h() - frame_y, Fl_Flex::ROW);
 
   build_text_editor();
   build_controls();
@@ -123,30 +132,10 @@ void SynthApp::build_text_editor() {
 }
 
 void SynthApp::on_show_info(Fl_Widget *widget) {
-  std::string info_path = asset_path("assets/how_to_use.txt");
-
-  std::ifstream infile(info_path);
-  if (!infile) {
-    fl_message_title("info file not found");
-    fl_message("Could not open info file: %s", info_path.c_str());
-    return;
+  if (!info_window) {
+    build_info_window();
   }
-  std::string content((std::istreambuf_iterator<char>(infile)),
-                      std::istreambuf_iterator<char>());
-
-  auto *info_win = new Fl_Double_Window(WIDTH, HEIGHT, "Synthext — How to Use");
-  info_win->begin();
-  auto *buf = new Fl_Text_Buffer();
-  auto *disp = new Fl_Text_Display(HORIZONTAL_POSITION, VERTICAL_POSITION,
-                                   TEXT_WIDTH, TEXT_HEIGHT);
-  disp->buffer(buf);
-  buf->text(content.c_str());
-  info_win->end();
-  info_win->show();
-}
-
-std::vector<uint8_t> SynthApp::compile_midi() {
-  return compiler.compile(controls->voice_params(), text_buffer->text());
+  info_window->show();
 }
 
 void SynthApp::play_midi() {
@@ -170,6 +159,17 @@ void SynthApp::build_playback() {
   player.load_soundfont(soundfont_path.c_str());
 }
 
+void SynthApp::build_info_window() {
+  info_window = new Fl_Double_Window(WIDTH, HEIGHT, "Synthext — How to Use");
+  info_window->begin();
+  info_text_buffer = new Fl_Text_Buffer();
+  info_text_display = new Fl_Text_Display(
+      HORIZONTAL_POSITION, VERTICAL_POSITION, TEXT_WIDTH, TEXT_HEIGHT);
+  info_text_display->buffer(info_text_buffer);
+  info_text_buffer->text(usage_guide_txt);
+  info_window->end();
+  info_window->resizable(info_text_display);
+}
 static bool choose_file(Fl_Native_File_Chooser::Type type,
                         std::string &out_filename, const char *title,
                         const char *filter) {
