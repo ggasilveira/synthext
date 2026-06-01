@@ -5,11 +5,14 @@
 
 #include "ui.hpp"
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
+
 using namespace synthlib;
 
 auto main() -> int {
   spdlog::cfg::load_env_levels();
-  auto *app_window = new Fl_Double_Window(800, 600, "Synthext");
+  auto *app_window = new Fl_Double_Window(WINDOW_WIDTH, WINDOW_HEIGHT, "Synthext");
 
   auto *app = new SynthApp();
   app->build(*app_window);

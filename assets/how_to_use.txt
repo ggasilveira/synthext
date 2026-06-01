@@ -1,0 +1,19 @@
+Synthext — How to Use
+
+- Escreva linhas de comandos no editor de texto (uma voz por linha).
+- Use 'File -> Load Text' para abrir um arquivo de texto contendo o código.
+- Use 'File -> Save Text' para salvar o conteúdo atual do editor.
+- Use 'File -> Save MIDI' para compilar o código em um arquivo .mid.
+
+Sintaxe rápida:
+- Notas: A B C D E F G H (H = Bb), Mb = Eb.
+- Pausas: letras minúsculas (cada pausa = 1 batida).
+- Delay: coloque [<n>] no início da linha para atrasar n batidas.
+
+Controles:
+- Voz: escolha a voz para editar parâmetros.
+- Instrumento: selecione instrumento MIDI.
+- Octave / Volume / BPM: ajuste conforme necessário.
+- Play / Stop: reproduz o MIDI gerado.
+
+Para mais detalhes, consulte a documentação em docs/ ou o README.

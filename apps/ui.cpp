@@ -11,21 +11,35 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <iterator>
+
+#define WIDTH 600
+#define HEIGHT 400
+#define HORIZONTAL_POSITION 10
+#define VERTICAL_POSITION 10
+#define TEXT_WIDTH 580
+#define TEXT_HEIGHT 380
+
+// forward declarations for helpers defined later in this file
+static bool choose_file(Fl_Native_File_Chooser::Type type,
+                        std::string &out_filename, const char *title,
+                        const char *filter = nullptr);
+
+static std::string asset_path(const char *relative_path);
 
 void SynthApp::on_save_text(Fl_Widget *widget) {
-  Fl_Native_File_Chooser file_chooser;
-  file_chooser.title("Save File As...");
-  file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
-  if (file_chooser.show() == 0) {
-    text_buffer->savefile(file_chooser.filename());
+  std::string filename;
+  if (choose_file(Fl_Native_File_Chooser::BROWSE_SAVE_FILE, filename,
+                  "Save File As...", "Text Files (*.txt)")) {
+    text_buffer->savefile(filename.c_str());
   }
 }
+
 void SynthApp::on_load_text(Fl_Widget *widget) {
-  Fl_Native_File_Chooser file_chooser;
-  file_chooser.title("Load File");
-  file_chooser.type(Fl_Native_File_Chooser::BROWSE_FILE);
-  if (file_chooser.show() == 0) {
-    text_buffer->loadfile(file_chooser.filename());
+  std::string filename;
+  if (choose_file(Fl_Native_File_Chooser::BROWSE_FILE, filename, "Load File",
+                  "Text Files (*.txt)")) {
+    text_buffer->loadfile(filename.c_str());
   }
 }
 std::vector<uint8_t> SynthApp::compile_midi() {
@@ -36,63 +50,41 @@ std::vector<uint8_t> SynthApp::compile_midi() {
   return consumer.generate_file();
 }
 
-void save_binary_file(std::vector<uint8_t> bytes, std::string filename) {
-  std::ofstream outfile(filename, std::ios::binary);
-  outfile.write((char *)bytes.data(), bytes.size());
-  outfile.close();
-}
-
 void show_compile_error(const CompilerError &err) {
   fl_message_title("Error compiling file");
   fl_message("%s", err.what());
 }
 
+void save_binary_file(const std::vector<uint8_t> &bytes,
+                      const std::string &filename) {
+  std::ofstream outfile(filename, std::ios::binary);
+  outfile.write((char *)bytes.data(), bytes.size());
+  outfile.close();
+}
+
 void SynthApp::on_save_midi(Fl_Widget *widget) {
   try {
-    auto midifile = compile_midi();
-    Fl_Native_File_Chooser file_chooser;
-    file_chooser.title("Save File As...");
-    file_chooser.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
-    file_chooser.filter("MIDI Files (*.mid)");
-    if (file_chooser.show() == 0) {
-      save_binary_file(midifile, file_chooser.filename());
+    auto midi_bytes = compile_midi();
+    std::string filename;
+    if (choose_file(Fl_Native_File_Chooser::BROWSE_SAVE_FILE, filename,
+                    "Save File As...", "MIDI Files (*.mid)")) {
+      save_binary_file(midi_bytes, filename);
     }
-  } catch (CompilerError err) {
+  } catch (const CompilerError &err) {
     show_compile_error(err);
   }
 }
 
 void SynthApp::build(Fl_Window &window) {
-
   window.begin();
 
-  // Putting the menu bar in the flex wasn't working for
-  // some reason, so we're putting outside and calculating
-  // the sizes manually.
   build_menu_bar(window);
-
-  // the dimensions of the frame which will hold all
-  // the other widgets.
-  int frame_x = 0;
-  int frame_y = menu_bar->h();
-  int frame_w = window.w();
-  int frame_h = window.h() - menu_bar->h();
-
-  frame = new Fl_Flex(frame_x, frame_y, frame_w, frame_h, Fl_Flex::ROW);
-
-  build_text_editor();
-  controls->build();
-  controls->on_play([&]() { play_midi(); });
-  controls->on_stop([&]() { stop_midi(); });
-  build_playback();
-
-  frame->fixed(controls->root(), CONTROLS_WIDTH);
-  frame->resizable(text_editor);
-
-  frame->end();
+  build_main_frame(window);
 
   window.resizable(frame);
   window.end();
+
+  build_playback();
 }
 
 void SynthApp::build_menu_bar(Fl_Window &window) {
@@ -100,11 +92,21 @@ void SynthApp::build_menu_bar(Fl_Window &window) {
   menu_bar->add("File/Load Text", 0, SynthApp::on_load_text_cb, this);
   menu_bar->add("File/Save Text", 0, SynthApp::on_save_text_cb, this);
   menu_bar->add("File/Save MIDI", 0, SynthApp::on_save_midi_cb, this);
+  menu_bar->add("info/How to Use", 0, SynthApp::on_show_info_cb, this);
 }
 
-void text_changed_cb(int pos, int n_ins, int n_del, int n_restyled,
-                     const char *deleted_text, void *changed_var) {
-  *static_cast<bool *>(changed_var) = true;
+void SynthApp::build_main_frame(Fl_Window &window) {
+  int frame_y = menu_bar->h();
+  frame =
+      new Fl_Flex(0, frame_y, window.w(), window.h() - frame_y, Fl_Flex::ROW);
+
+  build_text_editor();
+  build_controls();
+
+  frame->fixed(controls->root(), CONTROLS_WIDTH);
+  frame->resizable(text_editor);
+
+  frame->end();
 }
 
 void SynthApp::build_text_editor() {
@@ -118,8 +120,33 @@ void SynthApp::build_text_editor() {
   // set line numbering
   text_editor->linenumber_width(EDITOR_LINE_NUMBER_SIZE * 2);
   text_editor->linenumber_format("%d");
+}
 
-  // text_buffer->add_modify_callback(text_changed_cb, &text_changed);
+void SynthApp::on_show_info(Fl_Widget *widget) {
+  std::string info_path = asset_path("assets/how_to_use.txt");
+
+  std::ifstream infile(info_path);
+  if (!infile) {
+    fl_message_title("info file not found");
+    fl_message("Could not open info file: %s", info_path.c_str());
+    return;
+  }
+  std::string content((std::istreambuf_iterator<char>(infile)),
+                      std::istreambuf_iterator<char>());
+
+  auto *info_win = new Fl_Double_Window(WIDTH, HEIGHT, "Synthext — How to Use");
+  info_win->begin();
+  auto *buf = new Fl_Text_Buffer();
+  auto *disp = new Fl_Text_Display(HORIZONTAL_POSITION, VERTICAL_POSITION,
+                                   TEXT_WIDTH, TEXT_HEIGHT);
+  disp->buffer(buf);
+  buf->text(content.c_str());
+  info_win->end();
+  info_win->show();
+}
+
+std::vector<uint8_t> SynthApp::compile_midi() {
+  return compiler.compile(controls->voice_params(), text_buffer->text());
 }
 
 void SynthApp::play_midi() {
@@ -127,10 +154,41 @@ void SynthApp::play_midi() {
     player.load_midi(compile_midi());
     player.seek(0);
     player.play();
-
-  } catch (CompilerError err) {
+  } catch (const CompilerError &err) {
     show_compile_error(err);
   }
 }
 void SynthApp::stop_midi() { player.stop(); }
-void SynthApp::build_playback() { player.load_soundfont("assets/general.sf2"); }
+void SynthApp::build_controls() {
+  controls->build();
+  controls->on_play([this]() { play_midi(); });
+  controls->on_stop([this]() { stop_midi(); });
+}
+
+void SynthApp::build_playback() {
+  std::string soundfont_path = asset_path("assets/general.sf2");
+  player.load_soundfont(soundfont_path.c_str());
+}
+
+static bool choose_file(Fl_Native_File_Chooser::Type type,
+                        std::string &out_filename, const char *title,
+                        const char *filter) {
+  Fl_Native_File_Chooser chooser;
+  chooser.title(title);
+  chooser.type(type);
+  if (filter) {
+    chooser.filter(filter);
+  }
+  if (chooser.show() == 0) {
+    out_filename = chooser.filename();
+    return true;
+  }
+  return false;
+}
+
+static std::string asset_path(const char *relative_path) {
+  std::string asset_dir = std::string(__FILE__);
+  asset_dir = asset_dir.substr(0, asset_dir.rfind("apps"));
+  asset_dir += relative_path;
+  return asset_dir;
+}
